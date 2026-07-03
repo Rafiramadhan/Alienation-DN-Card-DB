@@ -14,6 +14,7 @@ const https = require('https');
 const ROOT = __dirname;
 const CSV = path.join(ROOT, 'database.csv');
 const TEMPLATE = path.join(ROOT, 'src', 'template.html');
+const LOGO = path.join(ROOT, 'assets', 'dn-logo.png');
 const OUT = path.join(ROOT, 'index.html');
 
 const SHEET_ID = '1vTvRW7hDA5tGE-BXDQrCC3Sf74EdNvcoNhUVbSLLYOY';
@@ -108,7 +109,15 @@ function parse(raw) {
   const tpl = fs.readFileSync(TEMPLATE, 'utf8');
   if (!tpl.includes('__DATA__')) { console.error('Template has no __DATA__ placeholder'); process.exit(1); }
 
-  const html = tpl.replace('__DATA__', JSON.stringify(db));
+  let html = tpl.replace('__DATA__', JSON.stringify(db));
+
+  // Embed the Dragon Nest logo as a base64 data URI so the app stays self-contained.
+  if (html.includes('__LOGO__')) {
+    if (!fs.existsSync(LOGO)) { console.error('Missing assets/dn-logo.png'); process.exit(1); }
+    const b64 = fs.readFileSync(LOGO).toString('base64');
+    html = html.replace('__LOGO__', 'data:image/png;base64,' + b64);
+  }
+
   fs.writeFileSync(OUT, html);
 
   const lines = db.cards.reduce((a, c) => a + c.stats.length, 0);

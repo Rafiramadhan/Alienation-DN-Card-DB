@@ -35,12 +35,8 @@
     background:linear-gradient(180deg,rgba(31,23,13,.55),rgba(13,10,6,0));}
   header::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
     background:linear-gradient(90deg,transparent,var(--gold-deep) 18%,var(--gold2) 50%,var(--gold-deep) 82%,transparent);}
-  .crest{width:46px;height:46px;margin:0 auto 12px;transform:rotate(45deg);
-    background:linear-gradient(135deg,var(--gold2),var(--gold-deep));
-    border:1px solid var(--gold2);border-radius:9px;
-    box-shadow:0 0 26px rgba(231,189,94,.35),inset 0 0 14px rgba(0,0,0,.45);
-    display:flex;align-items:center;justify-content:center;}
-  .crest::after{content:"";width:15px;height:15px;border:2px solid rgba(11,9,6,.65);border-radius:3px;}
+  .dn-logo{display:block;margin:4px auto 8px;width:250px;max-width:80%;height:auto;
+    filter:drop-shadow(0 3px 16px rgba(231,189,94,.30)) drop-shadow(0 1px 2px rgba(0,0,0,.6));}
   .kicker{font-family:var(--serif);color:var(--crimson);font-weight:700;
     letter-spacing:6px;font-size:12.5px;text-transform:uppercase;margin-bottom:8px;
     text-shadow:0 1px 6px rgba(192,57,43,.4)}
@@ -153,9 +149,8 @@
 </head>
 <body>
 <header>
-  <div class="crest"></div>
   <div class="kicker">✦ Alienation ✦</div>
-  <h1>Dragon Nest</h1>
+  <img class="dn-logo" src="__LOGO__" alt="Dragon Nest Classic" width="298" height="110">
   <div class="h1sub">Monster Card Database</div>
   <div class="sub">Filter monster cards by stat, or browse every card. Click any card row to reveal all of its stats.</div>
   <div class="divider"><span></span><i>❖</i><span></span></div>
@@ -253,8 +248,7 @@ $('rarity').value = state.rarity;
 
 $('stat').onchange  = e => {
   state.stat = e.target.value;
-  // sensible default sort per mode
-  state.sort = state.stat===ALL ? {key:'no',dir:1} : {key:'rarity',dir:-1};
+  state.sort = {key:'no',dir:1};   // always default to card number
   render();
 };
 $('nest').onchange  = e => { state.nest = e.target.value; render(); };
