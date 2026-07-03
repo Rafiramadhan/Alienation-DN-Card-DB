@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dragon Nest — Monster Card Filter</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --txt:#e6e8ec; --mut:#8b93a3; --accent:#e0a340;
+    --magic:#9aa4b2; --rare:#4c8dff; --epic:#b061ff; --unique:#f2a93b; --legend:#ff5a5a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:14px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
+  header{padding:20px 22px 0;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#191d26,#12151b)}
+  h1{margin:0;font-size:19px;letter-spacing:.3px}
+  h1 span{color:var(--accent)}
+  .sub{color:var(--mut);font-size:12.5px;margin-top:3px}
+  .tabs{display:flex;gap:4px;margin-top:16px}
+  .tab{padding:9px 16px;border:1px solid var(--line);border-bottom:none;
+    border-radius:9px 9px 0 0;background:transparent;color:var(--mut);
+    cursor:pointer;font-size:13.5px;font-weight:600}
+  .tab.active{background:var(--bg);color:var(--txt);border-color:var(--line)}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px 22px 60px}
+  .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)}
+  select,input{background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;padding:8px 10px;font-size:14px;outline:none;min-width:150px}
+  select:focus,input:focus{border-color:var(--accent)}
+  .field.grow{flex:1;min-width:180px}
+  .field.grow input{width:100%}
+  .count{color:var(--mut);font-size:12.5px;margin:16px 2px 8px}
+  .count b{color:var(--txt)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  thead th{background:var(--panel2);text-align:left;padding:10px 12px;font-size:12px;
+    text-transform:uppercase;letter-spacing:.5px;color:var(--mut);
+    border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap}
+  thead th.num{text-align:right}
+  thead th .arr{color:var(--accent);font-size:10px}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr.card{cursor:pointer}
+  tbody tr.card:hover{background:#1b1f28}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .cno{color:var(--mut);font-variant-numeric:tabular-nums}
+  .cname{font-weight:600}
+  .nest{color:var(--mut);font-size:12.5px}
+  .stat{color:var(--accent)}
+  th.r-magic,td.r-magic{color:var(--magic)} th.r-rare,td.r-rare{color:var(--rare)}
+  th.r-epic,td.r-epic{color:var(--epic)} th.r-unique,td.r-unique{color:var(--unique)}
+  th.r-legend,td.r-legend{color:var(--legend)}
+  td.sel{background:rgba(224,163,64,.10);font-weight:700}
+  th.sel{background:rgba(224,163,64,.14)}
+  .detail{background:#12151b}
+  .detail td{padding:0}
+  .detail table{border:none;border-radius:0;margin:0}
+  .detail thead th{background:#12151b}
+  .empty{padding:40px;text-align:center;color:var(--mut)}
+  .foot{color:var(--mut);font-size:11.5px;margin-top:22px;text-align:center;line-height:1.7}
+  .foot code{background:var(--panel2);padding:1px 6px;border-radius:5px}
+  .pill{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;
+    border:1px solid var(--line);color:var(--mut);margin-left:6px}
+  .hidden{display:none}
+  /* reference view */
+  .cards2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .rc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .rc h3{margin:0 0 4px;font-size:15px}
+  .rc .rcsub{color:var(--mut);font-size:12px;margin-bottom:12px}
+  .rc table{border:none}
+  .rc thead th{cursor:default}
+  .rc.full{grid-column:1/-1}
+  .note{color:var(--mut);font-size:12px;margin-top:10px;font-style:italic}
+  .bar{position:relative;background:var(--panel2);border-radius:5px;height:16px;min-width:60px}
+  .bar>span{position:absolute;left:0;top:0;bottom:0;border-radius:5px;opacity:.85}
+</style>
+</head>
+<body>
+<header>
+  <h1><span>Dragon Nest</span> — Monster Card Database</h1>
+  <div class="sub">Filter monster cards by stat, or browse every card. Click any card row to see all its stats.</div>
+  <div class="tabs">
+    <button class="tab active" data-view="cards">Card Filter</button>
+    <button class="tab" data-view="ref">Odds &amp; Mastery</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- ============ CARD FILTER VIEW ============ -->
+  <section id="cardsView">
+    <div class="controls">
+      <div class="field">
+        <label for="stat">Stat</label>
+        <select id="stat"></select>
+      </div>
+      <div class="field">
+        <label for="nest">Nest</label>
+        <select id="nest"></select>
+      </div>
+      <div class="field">
+        <label for="rarity">Highlight / sort rarity</label>
+        <select id="rarity"></select>
+      </div>
+      <div class="field grow">
+        <label for="q">Search card</label>
+        <input id="q" type="text" placeholder="e.g. Dragon, Golem, Kakari…" autocomplete="off">
+      </div>
+    </div>
+    <div class="count" id="count"></div>
+    <div id="results"></div>
+  </section>
+
+  <!-- ============ ODDS & MASTERY VIEW ============ -->
+  <section id="refView" class="hidden">
+    <div class="cards2" id="refCards"></div>
+  </section>
+
+  <div class="foot">
+    Data snapshot from the <b>DN Card DB</b> Google Sheet · 91 cards · 16 nests · 20 stats.<br>
+    Rebuild the card data with <code>node parse.js</code> after re-downloading <code>database.csv</code>.
+  </div>
+</div>
+
+<script>
+const DB = {"meta":{"rarities":["Magic","Rare","Epic","Unique","Legend"],"stats":["Agi","Attk Power","Crit","Crit Damage","Crit Resist","Crystal of Power","Defense","Final Damage","Int","MP Recovery","Magic Attk","Magic Def","Max HP","Max MP","Para Resist","Paralyze","Str","Stun","Stun Resist","Vit"],"nests":["Minotaur Nest","Cerberus Nest","Manticore Nest","Apocalypse Nest","Sea Dragon Nest","Archbishop Nest","Gigantes Nest","Green Dragon Nest","Professor K Nest","Chaos Resting Place (Tomb Invader)","Typhoon Kim Nest","Desert Dragon Nest","Guardian Nest","Burning Resting Place (Tomb Invader)","Mist Nest","Black Dragon Nest"]},"cards":[{"no":1,"name":"General Umzaka","nest":"Minotaur Nest","stats":[{"stat":"Str","values":[1,2,3,4,5]},{"stat":"Crit Resist","values":[10,21,32,43,54]},{"stat":"Crystal of Power","values":[1,2,3,4,5]}]},{"no":2,"name":"General Umhar","nest":"Minotaur Nest","stats":[{"stat":"Agi","values":[1,2,3,4,5]},{"stat":"Stun Resist","values":[10,21,32,43,54]},{"stat":"Crystal of Power","values":[1,2,3,4,5]}]},{"no":3,"name":"General Crimson Ummanba","nest":"Minotaur Nest","stats":[{"stat":"Int","values":[1,2,3,4,5]},{"stat":"Vit","values":[1,2,3,4,5]},{"stat":"Para Resist","values":[15,31,46,62,78]},{"stat":"Crystal of Power","values":[2,4,6,8,10]}]},{"no":4,"name":"Minotaur Knight","nest":"Cerberus Nest","stats":[{"stat":"Magic Def","values":[14,29,43,58,73]},{"stat":"Paralyze","values":[31,63,95,127,159]},{"stat":"Crystal of Power","values":[4,8,12,16,20]}]},{"no":5,"name":"Minotaur Commander","nest":"Cerberus Nest","stats":[{"stat":"Defense","values":[14,29,43,58,73]},{"stat":"Stun","values":[31,63,95,127,159]},{"stat":"Crystal of Power","values":[4,8,12,16,20]}]},{"no":6,"name":"Crow Hobgoblin","nest":"Cerberus Nest","stats":[{"stat":"Attk Power","values":[2,4,6,8,10]},{"stat":"Crit","values":[24,48,72,96,120]},{"stat":"Crystal of Power","values":[4,8,12,16,20]}]},{"no":7,"name":"Brother Summoner","nest":"Cerberus Nest","stats":[{"stat":"Magic Attk","values":[2,4,6,8,10]},{"stat":"Paralyze","values":[7,15,23,31,39]},{"stat":"Max MP","values":[85,171,256,342,428]},{"stat":"Crystal of Power","values":[4,8,12,16,20]}]},{"no":8,"name":"Ogre Slave","nest":"Cerberus Nest","stats":[{"stat":"Str","values":[2,4,6,8,10]},{"stat":"Magic Def","values":[14,28,43,57,72]},{"stat":"Crystal of Power","values":[4,8,12,16,20]}]},{"no":9,"name":"Ogre Commander","nest":"Cerberus Nest","stats":[{"stat":"Agi","values":[2,4,6,8,10]},{"stat":"Magic Def","values":[14,28,43,57,72]},{"stat":"Crystal of Power","values":[4,8,12,16,20]}]},{"no":10,"name":"Cerberus Kakari","nest":"Cerberus Nest","stats":[{"stat":"Attk Power","values":[4,8,12,16,21]},{"stat":"Magic Attk","values":[4,8,12,16,21]},{"stat":"Max HP","values":[121,242,363,484,605]},{"stat":"Crystal of Power","values":[8,16,24,32,40]}]},{"no":11,"name":"Gargoyle Stinger","nest":"Manticore Nest","stats":[{"stat":"Int","values":[1,2,3,4,6]},{"stat":"Max MP","values":[138,276,414,552,691]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":12,"name":"Lamia Attacker","nest":"Manticore Nest","stats":[{"stat":"Agi","values":[1,3,5,7,9]},{"stat":"Attk Power","values":[2,5,8,11,14]},{"stat":"Para Resist","values":[40,81,122,163,204]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":13,"name":"Giant Stone Half Golem","nest":"Manticore Nest","stats":[{"stat":"Vit","values":[1,2,3,4,5]},{"stat":"Defense","values":[14,29,44,59,74]},{"stat":"Crit Resist","values":[32,64,96,128,160]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":14,"name":"Manticore Lord Kram","nest":"Manticore Nest","stats":[{"stat":"Str","values":[2,4,6,8,10]},{"stat":"Attk Power","values":[5,11,16,22,28]},{"stat":"Paralyze","values":[64,129,193,258,323]},{"stat":"Max HP","values":[81,163,245,327,409]},{"stat":"Crystal of Power","values":[12,24,36,48,60]}]},{"no":15,"name":"Fearful Death Ray","nest":"Apocalypse Nest","stats":[{"stat":"Magic Attk","values":[2,5,8,11,14]},{"stat":"Crit","values":[16,33,49,66,83]},{"stat":"Max MP","values":[76,152,228,304,381]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":16,"name":"Midnight Death Howl","nest":"Apocalypse Nest","stats":[{"stat":"Str","values":[1,3,4,6,8]},{"stat":"Crit","values":[13,27,40,54,68]},{"stat":"Stun","values":[40,80,120,160,200]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":17,"name":"Five Brothers' Specter","nest":"Apocalypse Nest","stats":[{"stat":"Attk Power","values":[2,5,8,11,14]},{"stat":"Crit","values":[14,28,43,57,72]},{"stat":"Paralyze","values":[40,80,120,160,200]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":18,"name":"Vengeful Ling","nest":"Apocalypse Nest","stats":[{"stat":"Agi","values":[1,3,4,6,8]},{"stat":"Int","values":[1,2,3,4,6]},{"stat":"Stun","values":[43,86,129,172,216]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":19,"name":"Obsessed Grunt","nest":"Apocalypse Nest","stats":[{"stat":"Str","values":[1,3,4,6,8]},{"stat":"Magic Def","values":[12,24,37,49,62]},{"stat":"Stun","values":[40,80,120,160,200]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":20,"name":"Wild Hellglaze","nest":"Apocalypse Nest","stats":[{"stat":"Agi","values":[1,3,4,6,8]},{"stat":"Crit","values":[14,28,42,56,70]},{"stat":"Max MP","values":[84,168,252,336,420]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":21,"name":"Enraged Umhama","nest":"Apocalypse Nest","stats":[{"stat":"Agi","values":[1,3,4,6,8]},{"stat":"Crit","values":[18,36,54,72,91]},{"stat":"Stun Resist","values":[30,61,92,123,154]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":22,"name":"Prideful Levant","nest":"Apocalypse Nest","stats":[{"stat":"Str","values":[1,3,4,6,8]},{"stat":"Max HP","values":[67,134,201,268,336]},{"stat":"Max MP","values":[72,144,216,288,360]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":23,"name":"Fanatic Blan","nest":"Apocalypse Nest","stats":[{"stat":"Magic Def","values":[8,17,25,34,43]},{"stat":"Crit Resist","values":[72,144,216,288,361]},{"stat":"Crystal of Power","values":[6,12,18,24,30]}]},{"no":24,"name":"Judge Apocalypse","nest":"Apocalypse Nest","stats":[{"stat":"Agi","values":[2,4,6,8,10]},{"stat":"Int","values":[1,3,4,6,8]},{"stat":"Magic Attk","values":[5,11,16,22,28]},{"stat":"Stun","values":[73,147,220,294,368]},{"stat":"Crystal of Power","values":[12,24,36,48,60]}]},{"no":25,"name":"Cyclops Berserker","nest":"Sea Dragon Nest","stats":[{"stat":"Vit","values":[3,6,10,13,17]},{"stat":"Attk Power","values":[4,9,14,19,24]},{"stat":"Paralyze","values":[148,296,445,593,742]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":26,"name":"Ogre Berserker","nest":"Sea Dragon Nest","stats":[{"stat":"Agi","values":[4,9,14,19,24]},{"stat":"Magic Def","values":[49,99,148,198,248]},{"stat":"Max MP","values":[198,396,594,792,990]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":27,"name":"Minotaur","nest":"Sea Dragon Nest","stats":[{"stat":"Vit","values":[2,5,8,11,14]},{"stat":"Int","values":[3,7,10,14,18]},{"stat":"Stun","values":[128,256,384,512,641]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":28,"name":"Rotting One-eyed Orc","nest":"Sea Dragon Nest","stats":[{"stat":"Agi","values":[3,6,9,12,16]},{"stat":"Str","values":[4,9,14,19,24]},{"stat":"Magic Def","values":[28,57,86,115,144]},{"stat":"MP Recovery","values":[1,2,3,4,5]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":29,"name":"Golem Lava","nest":"Sea Dragon Nest","stats":[{"stat":"Vit","values":[1,2,4,5,7]},{"stat":"Magic Attk","values":[4,9,14,19,24]},{"stat":"Defense","values":[39,78,118,157,197]},{"stat":"Stun Resist","values":[111,223,335,447,559]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":30,"name":"Revived Kakari","nest":"Sea Dragon Nest","stats":[{"stat":"Str","values":[4,9,14,19,24]},{"stat":"Attk Power","values":[4,9,14,19,24]},{"stat":"Magic Attk","values":[4,9,14,19,24]},{"stat":"Crit","values":[42,85,127,170,213]},{"stat":"Stun","values":[39,79,118,158,198]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":31,"name":"Kakari Returns with Vengeance","nest":"Sea Dragon Nest","stats":[{"stat":"Attk Power","values":[4,9,14,19,24]},{"stat":"Magic Attk","values":[4,9,14,19,24]},{"stat":"Defense","values":[44,89,134,179,224]},{"stat":"Magic Def","values":[44,89,134,179,224]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":32,"name":"Lizardman Brother Claw","nest":"Sea Dragon Nest","stats":[{"stat":"Str","values":[4,9,14,19,24]},{"stat":"Attk Power","values":[4,9,14,19,24]},{"stat":"Para Resist","values":[67,135,203,271,339]},{"stat":"Crit Resist","values":[67,135,203,271,339]},{"stat":"Max HP","values":[54,109,164,219,274]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":33,"name":"Lizardman Brother Tooth","nest":"Sea Dragon Nest","stats":[{"stat":"Agi","values":[4,9,14,19,24]},{"stat":"Magic Attk","values":[4,9,14,19,24]},{"stat":"Para Resist","values":[67,135,203,271,339]},{"stat":"Stun Resist","values":[67,135,203,271,339]},{"stat":"Max HP","values":[54,109,164,219,274]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":34,"name":"Lizardman Brother Tail","nest":"Sea Dragon Nest","stats":[{"stat":"Int","values":[3,7,10,14,18]},{"stat":"Magic Attk","values":[4,9,14,19,24]},{"stat":"Crit Resist","values":[67,135,203,271,339]},{"stat":"Stun Resist","values":[67,135,203,271,339]},{"stat":"Max HP","values":[54,109,164,219,274]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":35,"name":"Scout Captain Norbak","nest":"Sea Dragon Nest","stats":[{"stat":"Agi","values":[3,6,9,12,16]},{"stat":"Attk Power","values":[7,14,21,28,36]},{"stat":"Para Resist","values":[78,156,234,312,390]},{"stat":"MP Recovery","values":[1,2,3,4,5]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":36,"name":"Golem Moltan","nest":"Sea Dragon Nest","stats":[{"stat":"Vit","values":[1,2,4,5,7]},{"stat":"Magic Attk","values":[7,14,21,28,36]},{"stat":"Defense","values":[28,56,85,113,142]},{"stat":"Crit Resist","values":[34,69,104,139,174]},{"stat":"Max MP","values":[175,351,527,703,879]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":37,"name":"Sea Dragon Serpentra","nest":"Sea Dragon Nest","stats":[{"stat":"Attk Power","values":[14,28,42,56,70]},{"stat":"Magic Attk","values":[14,28,42,56,70]},{"stat":"Str","values":[9,18,28,37,47]},{"stat":"Agi","values":[9,18,28,37,47]},{"stat":"Int","values":[7,14,21,28,35]},{"stat":"Vit","values":[5,11,17,23,29]},{"stat":"Final Damage","values":[8,16,24,32,40]},{"stat":"Crystal of Power","values":[36,72,108,144,180]}]},{"no":38,"name":"Shaman Lich Andara","nest":"Archbishop Nest","stats":[{"stat":"Crit","values":[23,47,71,95,119]},{"stat":"Max HP","values":[89,178,267,356,446]},{"stat":"Max MP","values":[95,191,286,382,478]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":39,"name":"Golem Toadstool","nest":"Archbishop Nest","stats":[{"stat":"Vit","values":[1,2,4,5,7]},{"stat":"Defense","values":[19,39,59,79,99]},{"stat":"Crit Resist","values":[15,31,46,62,78]},{"stat":"Max HP","values":[81,163,245,327,409]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":40,"name":"Treacherous Preacher Adolf","nest":"Archbishop Nest","stats":[{"stat":"Magic Def","values":[19,39,59,79,99]},{"stat":"Crit","values":[20,41,61,82,103]},{"stat":"Para Resist","values":[52,104,156,208,260]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":41,"name":"Vengeful Assassin Bonita","nest":"Archbishop Nest","stats":[{"stat":"Agi","values":[2,4,6,8,10]},{"stat":"Crit","values":[26,53,79,106,133]},{"stat":"Crit Resist","values":[53,107,160,214,268]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":42,"name":"Cold-Blooded Magician Rasputin","nest":"Archbishop Nest","stats":[{"stat":"Int","values":[1,3,4,6,8]},{"stat":"Magic Attk","values":[2,5,8,11,14]},{"stat":"Paralyze","values":[22,44,66,88,110]},{"stat":"Para Resist","values":[22,44,66,88,110]},{"stat":"Max MP","values":[88,176,264,352,440]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":43,"name":"Fallen Sage Ballius","nest":"Archbishop Nest","stats":[{"stat":"Vit","values":[1,2,4,5,7]},{"stat":"Attk Power","values":[2,5,8,11,14]},{"stat":"Magic Attk","values":[2,5,8,11,14]},{"stat":"Crit Resist","values":[28,56,84,112,140]},{"stat":"Max MP","values":[58,117,175,234,293]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":44,"name":"Resurrected Punisher Brass","nest":"Archbishop Nest","stats":[{"stat":"Str","values":[2,4,6,8,10]},{"stat":"Defense","values":[9,18,28,37,47]},{"stat":"Magic Def","values":[9,18,28,37,47]},{"stat":"Crit Resist","values":[10,20,30,40,50]},{"stat":"Max HP","values":[111,222,333,444,555]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":45,"name":"Archbishop Kazalman","nest":"Archbishop Nest","stats":[{"stat":"Int","values":[2,5,8,11,14]},{"stat":"Magic Attk","values":[6,13,20,27,34]},{"stat":"Crit Resist","values":[47,94,141,188,235]},{"stat":"Max HP","values":[47,94,141,188,235]},{"stat":"MP Recovery","values":[1,2,3,4,5]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":46,"name":"Golem Fujinorth","nest":"Archbishop Nest","stats":[{"stat":"Str","values":[3,7,10,14,18]},{"stat":"Attk Power","values":[6,13,20,27,34]},{"stat":"Defense","values":[24,49,74,99,124]},{"stat":"Crit","values":[27,54,82,109,137]},{"stat":"Stun Resist","values":[55,111,166,222,278]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":47,"name":"Gatekeeper Quercus","nest":"Gigantes Nest","stats":[{"stat":"Agi","values":[1,3,5,7,9]},{"stat":"Vit","values":[1,2,3,4,6]},{"stat":"Attk Power","values":[3,6,10,13,17]},{"stat":"Defense","values":[23,46,70,93,117]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":48,"name":"Watcher Blanco 04","nest":"Gigantes Nest","stats":[{"stat":"Int","values":[1,2,4,5,7]},{"stat":"Magic Def","values":[13,27,40,54,68]},{"stat":"Max HP","values":[155,310,465,620,775]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":49,"name":"Immoral Ghost","nest":"Gigantes Nest","stats":[{"stat":"Int","values":[1,2,4,5,7]},{"stat":"Magic Attk","values":[3,6,10,13,17]},{"stat":"Magic Def","values":[18,37,55,74,93]},{"stat":"Crit Resist","values":[39,78,118,157,197]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":50,"name":"Slave Leader Constan","nest":"Gigantes Nest","stats":[{"stat":"Agi","values":[2,4,6,8,10]},{"stat":"Magic Def","values":[11,23,35,47,59]},{"stat":"Crit","values":[17,34,51,68,86]},{"stat":"Stun Resist","values":[48,96,145,193,242]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":51,"name":"Gigantes Maha","nest":"Gigantes Nest","stats":[{"stat":"Str","values":[3,7,10,14,18]},{"stat":"Vit","values":[2,5,8,11,14]},{"stat":"Defense","values":[24,49,73,98,123]},{"stat":"Max HP","values":[95,190,286,381,477]},{"stat":"Max MP","values":[102,204,306,408,511]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":52,"name":"Bishop Gaius","nest":"Green Dragon Nest","stats":[{"stat":"Int","values":[4,8,13,17,22]},{"stat":"Vit","values":[3,6,9,12,16]},{"stat":"Magic Def","values":[39,78,117,156,196]},{"stat":"Paralyze","values":[37,74,112,149,187]},{"stat":"Para Resist","values":[37,74,112,149,187]},{"stat":"Max MP","values":[175,351,527,703,879]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":53,"name":"Golem Morgon","nest":"Green Dragon Nest","stats":[{"stat":"Vit","values":[3,6,9,12,16]},{"stat":"Attk Power","values":[12,25,38,51,64]},{"stat":"Defense","values":[56,112,168,224,280]},{"stat":"Stun","values":[101,202,304,405,507]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":54,"name":"White-eyes Krakes","nest":"Green Dragon Nest","stats":[{"stat":"Magic Attk","values":[8,16,24,32,40]},{"stat":"Crit","values":[41,82,123,164,205]},{"stat":"Paralyze","values":[141,282,423,564,706]},{"stat":"Max HP","values":[246,492,738,984,1231]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":55,"name":"Swamp Queen Zabel","nest":"Green Dragon Nest","stats":[{"stat":"Str","values":[7,14,21,28,36]},{"stat":"Agi","values":[7,14,21,28,36]},{"stat":"Attk Power","values":[10,20,31,41,52]},{"stat":"Para Resist","values":[111,222,333,444,556]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":56,"name":"Sorcerer Karahan","nest":"Green Dragon Nest","stats":[{"stat":"Int","values":[6,13,20,27,34]},{"stat":"Magic Attk","values":[10,20,31,41,52]},{"stat":"Stun Resist","values":[103,207,311,415,519]},{"stat":"MP Recovery","values":[1,2,3,4,5]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":57,"name":"Green Dragon Karahan","nest":"Green Dragon Nest","stats":[{"stat":"Attk Power","values":[20,40,60,80,100]},{"stat":"Magic Attk","values":[20,40,60,80,100]},{"stat":"Str","values":[14,28,42,56,70]},{"stat":"Agi","values":[14,28,42,56,70]},{"stat":"Int","values":[10,20,31,41,52]},{"stat":"Vit","values":[8,16,25,33,42]},{"stat":"Final Damage","values":[12,24,36,48,60]},{"stat":"Crystal of Power","values":[54,108,162,216,270]}]},{"no":58,"name":"Experiment No.287 Taylor Nakulun","nest":"Professor K Nest","stats":[{"stat":"Crit","values":[31,63,94,126,158]},{"stat":"Max HP","values":[94,188,282,376,471]},{"stat":"Max MP","values":[101,202,303,404,505]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":59,"name":"Experiment No.171 Calamari Dienu","nest":"Professor K Nest","stats":[{"stat":"Int","values":[1,3,5,7,9]},{"stat":"Magic Def","values":[34,68,102,136,170]},{"stat":"Max HP","values":[115,231,347,463,579]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":60,"name":"Experiment No.172 Calamari Ailuf","nest":"Professor K Nest","stats":[{"stat":"Crit","values":[16,33,50,67,84]},{"stat":"Magic Def","values":[26,52,79,105,132]},{"stat":"Para Resist","values":[66,132,198,264,330]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":61,"name":"Experiment No.60 Prototype Omega","nest":"Professor K Nest","stats":[{"stat":"Agi","values":[2,5,8,11,14]},{"stat":"Crit","values":[16,33,50,67,84]},{"stat":"Crit Resist","values":[96,192,288,384,480]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":62,"name":"Little Fairy Queen Lantana","nest":"Professor K Nest","stats":[{"stat":"Str","values":[2,5,8,11,14]},{"stat":"Agi","values":[2,5,8,11,14]},{"stat":"Paralyze","values":[18,36,54,72,90]},{"stat":"Para Resist","values":[36,72,108,144,181]},{"stat":"Max MP","values":[101,202,303,404,506]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":63,"name":"Experiment No.665 Giant XXXX","nest":"Professor K Nest","stats":[{"stat":"Agi","values":[3,6,9,12,16]},{"stat":"Vit","values":[1,3,4,6,8]},{"stat":"Attk Power","values":[4,9,13,18,23]},{"stat":"Defense","values":[28,57,85,114,143]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":64,"name":"Professor K","nest":"Professor K Nest","stats":[{"stat":"Str","values":[4,9,14,19,24]},{"stat":"Vit","values":[4,8,12,16,20]},{"stat":"Defense","values":[24,48,72,96,120]},{"stat":"Max HP","values":[147,295,443,591,739]},{"stat":"Max MP","values":[158,316,475,633,792]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":65,"name":"Cursed Soul Hero","nest":"Chaos Resting Place (Tomb Invader)","stats":[{"stat":"Vit","values":[3,6,9,12,15]},{"stat":"Attk Power","values":[1,3,5,7,9]},{"stat":"Magic Attk","values":[1,3,5,7,9]},{"stat":"Crit Resist","values":[31,62,94,125,157]},{"stat":"Max MP","values":[101,202,303,404,506]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":66,"name":"Cursed Soul Chemise","nest":"Chaos Resting Place (Tomb Invader)","stats":[{"stat":"Int","values":[3,7,11,15,19]},{"stat":"Magic Attk","values":[9,18,27,36,45]},{"stat":"Crit Resist","values":[71,143,214,286,358]},{"stat":"Max HP","values":[27,54,81,108,135]},{"stat":"MP Recovery","values":[1,2,3,4,6]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":67,"name":"Gardener Garland","nest":"Typhoon Kim Nest","stats":[{"stat":"Str","values":[2,5,7,10,13]},{"stat":"Defense","values":[12,25,37,50,63]},{"stat":"Magic Def","values":[12,25,37,50,63]},{"stat":"Crit Resist","values":[20,40,60,80,110]},{"stat":"Max HP","values":[147,295,442,590,738]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":68,"name":"Blacksmith Little John","nest":"Typhoon Kim Nest","stats":[{"stat":"Vit","values":[1,3,5,7,9]},{"stat":"Defense","values":[26,52,79,105,132]},{"stat":"Crit Resist","values":[27,55,83,111,139]},{"stat":"Max HP","values":[81,163,245,327,409]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":69,"name":"Orc Kim Trio","nest":"Typhoon Kim Nest","stats":[{"stat":"Agi","values":[3,7,11,15,19]},{"stat":"Magic Def","values":[15,31,46,62,78]},{"stat":"Crit","values":[22,45,68,91,114]},{"stat":"Stun Resist","values":[39,78,117,156,196]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":70,"name":"Harpy Dark Mage","nest":"Typhoon Kim Nest","stats":[{"stat":"Int","values":[1,3,5,7,9]},{"stat":"Magic Attk","values":[4,8,12,16,20]},{"stat":"Magic Def","values":[24,49,74,99,124]},{"stat":"Crit Resist","values":[46,92,139,185,232]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":71,"name":"Typhoon Kim","nest":"Typhoon Kim Nest","stats":[{"stat":"Str","values":[4,9,14,19,24]},{"stat":"Attk Power","values":[9,18,27,36,45]},{"stat":"Stun","values":[26,52,79,105,132]},{"stat":"Crit","values":[36,72,108,145,182]},{"stat":"Paralyze","values":[95,191,286,382,478]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":72,"name":"Spitflower Ignis","nest":"Desert Dragon Nest","stats":[{"stat":"Str","values":[3,6,9,12,15]},{"stat":"Agi","values":[1,2,4,5,7]},{"stat":"Attk Power","values":[10,20,30,40,50]},{"stat":"Defense","values":[74,148,223,297,372]},{"stat":"Paralyze","values":[167,334,501,668,836]},{"stat":"Stun Resist","values":[170,350,520,700,880]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":73,"name":"Storm Master Zuu","nest":"Desert Dragon Nest","stats":[{"stat":"Agi","values":[4,8,12,16,20]},{"stat":"Int","values":[4,8,12,16,20]},{"stat":"Vit","values":[6,12,18,24,31]},{"stat":"Magic Def","values":[52,104,156,208,261]},{"stat":"Stun Resist","values":[63,127,190,254,318]},{"stat":"Max MP","values":[202,405,607,810,1013]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":74,"name":"Canyon Guardian Abubbah","nest":"Desert Dragon Nest","stats":[{"stat":"Magic Attk","values":[10,21,31,42,53]},{"stat":"Stun","values":[228,456,684,912,1141]},{"stat":"Crit","values":[41,82,123,164,205]},{"stat":"Max HP","values":[80,160,240,320,400]},{"stat":"Max MP","values":[80,160,240,320,400]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":75,"name":"Sandworm Hazal","nest":"Desert Dragon Nest","stats":[{"stat":"Str","values":[9,19,28,38,48]},{"stat":"Agi","values":[9,19,28,38,48]},{"stat":"Attk Power","values":[13,27,41,55,69]},{"stat":"Stun Resist","values":[17,34,51,68,85]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":76,"name":"Loyal Follower Kajif","nest":"Desert Dragon Nest","stats":[{"stat":"Int","values":[9,18,27,36,45]},{"stat":"Magic Attk","values":[13,27,41,55,69]},{"stat":"Stun Resist","values":[151,302,454,605,757]},{"stat":"MP Recovery","values":[1,2,3,4,5]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":77,"name":"Desert Dragon Jakard","nest":"Desert Dragon Nest","stats":[{"stat":"Attk Power","values":[27,54,81,108,135]},{"stat":"Magic Attk","values":[27,54,81,108,135]},{"stat":"Str","values":[25,50,75,100,125]},{"stat":"Agi","values":[25,50,75,100,125]},{"stat":"Int","values":[19,38,57,76,95]},{"stat":"Vit","values":[15,30,45,60,75]},{"stat":"Final Damage","values":[16,33,49,66,83]},{"stat":"Crystal of Power","values":[54,108,162,216,270]}]},{"no":78,"name":"Arch Frogolin Augur","nest":"Guardian Nest","stats":[{"stat":"Int","values":[1,2,3,4,6]},{"stat":"Vit","values":[1,2,3,4,5]},{"stat":"Magic Def","values":[24,49,74,99,124]},{"stat":"Max HP","values":[143,287,431,575,719]},{"stat":"Max MP","values":[66,132,199,265,332]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":79,"name":"Furious Aera Venom","nest":"Guardian Nest","stats":[{"stat":"Str","values":[1,3,4,6,8]},{"stat":"Agi","values":[3,7,11,15,19]},{"stat":"Defense","values":[11,22,33,44,55]},{"stat":"Stun","values":[11,23,35,47,59]},{"stat":"Stun Resist","values":[67,134,201,268,335]},{"stat":"Max MP","values":[66,132,198,264,331]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":80,"name":"The Great Dux Arks","nest":"Guardian Nest","stats":[{"stat":"Magic Attk","values":[0,0,1,1,2]},{"stat":"Agi","values":[3,7,11,15,19]},{"stat":"Int","values":[1,2,3,4,6]},{"stat":"Magic Def","values":[24,49,74,99,124]},{"stat":"Crit Resist","values":[77,154,231,308,386]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":81,"name":"Ignacio Gigante","nest":"Guardian Nest","stats":[{"stat":"Attk Power","values":[0,1,1,2,3]},{"stat":"Str","values":[1,3,4,6,8]},{"stat":"Defense","values":[33,66,99,132,166]},{"stat":"Magic Def","values":[24,49,74,99,124]},{"stat":"Crit Resist","values":[18,36,54,72,91]},{"stat":"Max HP","values":[42,84,127,169,212]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":82,"name":"Guardian of New Moon Fel Guardian","nest":"Guardian Nest","stats":[{"stat":"Int","values":[3,6,9,12,15]},{"stat":"Magic Attk","values":[7,14,21,28,36]},{"stat":"Magic Def","values":[25,50,76,101,127]},{"stat":"Crit Resist","values":[86,172,258,344,430]},{"stat":"Max HP","values":[32,64,97,129,162]},{"stat":"MP Recovery","values":[1,2,3,4,6]},{"stat":"Crit Damage","values":[13,27,40,54,68]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":83,"name":"Burning Soul Hero","nest":"Burning Resting Place (Tomb Invader)","stats":[{"stat":"Vit","values":[3,6,9,12,15]},{"stat":"Attk Power","values":[2,4,6,8,11]},{"stat":"Magic Attk","values":[2,4,6,8,11]},{"stat":"Crit","values":[9,19,29,39,49]},{"stat":"Crit Resist","values":[37,75,113,151,189]},{"stat":"Max MP","values":[66,132,198,264,330]},{"stat":"Crit Damage","values":[16,33,50,67,84]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":84,"name":"Burning Soul Chemise","nest":"Burning Resting Place (Tomb Invader)","stats":[{"stat":"Str","values":[5,11,17,23,29]},{"stat":"Attk Power","values":[7,14,21,28,36]},{"stat":"Stun","values":[31,63,94,126,158]},{"stat":"Crit","values":[21,43,65,87,109]},{"stat":"Crit Resist","values":[57,114,172,229,287]},{"stat":"Paralyze","values":[43,87,131,175,219]},{"stat":"Stun Resist","values":[57,114,172,229,287]},{"stat":"Crit Damage","values":[28,57,86,115,144]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":85,"name":"Rusty Mist Gustcry","nest":"Mist Nest","stats":[{"stat":"Crit","values":[47,95,143,191,239]},{"stat":"Stun Resist","values":[25,51,77,103,129]},{"stat":"Max HP","values":[101,202,304,405,507]},{"stat":"Crit Damage","values":[16,33,50,67,84]},{"stat":"Crystal of Power","values":[9,18,27,36,45]}]},{"no":86,"name":"Weeping Mist Queen","nest":"Mist Nest","stats":[{"stat":"Str","values":[5,11,17,23,29]},{"stat":"Vit","values":[4,9,14,19,24]},{"stat":"Defense","values":[28,57,86,115,144]},{"stat":"Stun","values":[88,177,266,355,444]},{"stat":"Max HP","values":[177,354,532,709,887]},{"stat":"Crystal of Power","values":[18,36,54,72,90]}]},{"no":87,"name":"100-man Leader Ogre Boarba","nest":"Black Dragon Nest","stats":[{"stat":"Attk Power","values":[1,3,4,6,8]},{"stat":"Defense","values":[93,186,279,372,465]},{"stat":"Stun","values":[141,282,424,565,707]},{"stat":"Paralyze","values":[209,418,627,836,1046]},{"stat":"Stun Resist","values":[22,44,66,88,110]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":88,"name":"Anjuta Army Leader Wonbla","nest":"Black Dragon Nest","stats":[{"stat":"Str","values":[5,10,15,20,26]},{"stat":"Agi","values":[5,10,15,20,26]},{"stat":"Para Resist","values":[213,426,639,852,1066]},{"stat":"Max MP","values":[291,582,873,1164,1456]},{"stat":"Crit Damage","values":[138,276,415,553,692]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":89,"name":"Black Ring Punisher Meluka","nest":"Black Dragon Nest","stats":[{"stat":"Agi","values":[5,10,15,20,26]},{"stat":"Int","values":[5,10,15,20,26]},{"stat":"Vit","values":[3,6,9,12,15]},{"stat":"Magic Def","values":[65,130,195,260,326]},{"stat":"Crit","values":[38,76,114,152,190]},{"stat":"Stun Resist","values":[79,158,238,317,397]},{"stat":"Max MP","values":[253,506,759,1012,1266]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":90,"name":"Centurion Titanian","nest":"Black Dragon Nest","stats":[{"stat":"Int","values":[3,7,11,15,19]},{"stat":"Crit","values":[47,94,142,189,237]},{"stat":"Stun Resist","values":[94,189,283,378,473]},{"stat":"Max HP","values":[200,400,600,800,1000]},{"stat":"MP Recovery","values":[1,2,3,4,6]},{"stat":"Crit Damage","values":[138,276,415,553,692]},{"stat":"Crystal of Power","values":[27,54,81,108,135]}]},{"no":91,"name":"Red Dragon Feder(?)","nest":"Black Dragon Nest","stats":[{"stat":"Attk Power","values":[33,67,101,135,169]},{"stat":"Magic Attk","values":[33,67,101,135,169]},{"stat":"Str","values":[29,59,88,118,148]},{"stat":"Agi","values":[29,59,88,118,148]},{"stat":"Int","values":[22,44,66,88,111]},{"stat":"Vit","values":[17,35,53,71,89]},{"stat":"Final Damage","values":[20,41,61,82,103]},{"stat":"Crit Damage","values":[82,165,248,331,414]},{"stat":"Crystal of Power","values":[54,108,162,216,270]}]}]};
+const R = DB.meta.rarities;                 // [Magic,Rare,Epic,Unique,Legend]
+const RKEY = ['magic','rare','epic','unique','legend'];
+const ALL = '__ALL__';
+
+// ---- reference tables (from the sheet's side columns) ----
+const REF = {
+  packOdds: [
+    { rarity:'Magic', pct:34 }, { rarity:'Rare', pct:40 }, { rarity:'Epic', pct:20 },
+    { rarity:'Unique', pct:5 }, { rarity:'Legend', pct:1 }
+  ],
+  boxOdds: [
+    { rarity:'Magic',  roll:'34%',    tenth:'—' },
+    { rarity:'Rare',   roll:'40%',    tenth:'—' },
+    { rarity:'Epic',   roll:'20%',    tenth:'—' },
+    { rarity:'Unique', roll:'5%',     tenth:'95%' },
+    { rarity:'Legend', roll:'1%',     tenth:'5%' },
+    { rarity:'Sea Dragon Serpentra', roll:'0.01%',  tenth:'0.1%' },
+    { rarity:'Sea Dragon Serpentra', roll:'0.001%', tenth:'0.01%' }
+  ],
+  mastery: [
+    [1,'5%','40'],[2,'10%','5000%'],[3,'15%','6300%'],[4,'20%','7800%'],[5,'25%','9600%'],
+    [6,'30%','11700%'],[7,'35%','14100%'],[8,'40%','16800%'],[9,'45%','19800%'],[10,'50%','23200%'],
+    [11,'55%','26900%'],[12,'60%','31000%'],[13,'65%','35500%'],[14,'70%','40400%'],[15,'75%','45800%'],
+    [16,'80%','51600%'],[17,'85%','57900%'],[18,'90%','64700%'],[19,'95%','72100%'],[20,'100%','80000%'],
+    [21,'105%','84500%'],[22,'110%','89200%'],[23,'115%','94100%'],[24,'120%','99200%'],[25,'125%','104500%']
+  ]
+};
+
+const $ = id => document.getElementById(id);
+const state = { stat:ALL, nest:'All', rarity:'Legend', q:'', sort:{key:'no',dir:1} };
+
+// ---- view tabs ----
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const v = t.dataset.view;
+    $('cardsView').classList.toggle('hidden', v!=='cards');
+    $('refView').classList.toggle('hidden', v!=='ref');
+    if(v==='ref') renderRef();
+  };
+});
+
+// ---- populate controls ----
+function opt(v,t){const o=document.createElement('option');o.value=v;o.textContent=t||v;return o;}
+$('stat').appendChild(opt(ALL,'★ All cards (all stats)'));
+DB.meta.stats.forEach(s => $('stat').appendChild(opt(s)));
+$('nest').appendChild(opt('All','All nests'));
+DB.meta.nests.forEach(n => $('nest').appendChild(opt(n)));
+R.forEach(r => $('rarity').appendChild(opt(r)));
+$('stat').value = state.stat;
+$('rarity').value = state.rarity;
+
+$('stat').onchange  = e => {
+  state.stat = e.target.value;
+  // sensible default sort per mode
+  state.sort = state.stat===ALL ? {key:'no',dir:1} : {key:'rarity',dir:-1};
+  render();
+};
+$('nest').onchange  = e => { state.nest = e.target.value; render(); };
+$('rarity').onchange= e => { state.rarity = e.target.value; render(); };
+$('q').oninput      = e => { state.q = e.target.value.trim().toLowerCase(); render(); };
+
+// ---- build filtered rows ----
+function rows(){
+  const ri = R.indexOf(state.rarity);
+  const allMode = state.stat===ALL;
+  let out = [];
+  for(const c of DB.cards){
+    if(state.nest !== 'All' && c.nest !== state.nest) continue;
+    if(state.q && !c.name.toLowerCase().includes(state.q)) continue;
+    if(allMode){
+      for(const s of c.stats)
+        out.push({ no:c.no, name:c.name, nest:c.nest, stat:s.stat, values:s.values, card:c });
+    } else {
+      const s = c.stats.find(x => x.stat === state.stat);
+      if(!s) continue;
+      out.push({ no:c.no, name:c.name, nest:c.nest, stat:s.stat, values:s.values, card:c });
+    }
+  }
+  const dir = state.sort.dir, k = state.sort.key;
+  out.sort((a,b)=>{
+    if(k==='no'){ return dir*(a.no-b.no) || a.stat.localeCompare(b.stat); }
+    if(k==='name'){ return dir*a.name.localeCompare(b.name) || a.no-b.no; }
+    if(k==='nest'){ return dir*a.nest.localeCompare(b.nest) || a.no-b.no; }
+    if(k==='stat'){ return dir*a.stat.localeCompare(b.stat) || a.no-b.no; }
+    const av=a.values[ri]??-1, bv=b.values[ri]??-1;
+    return dir*(av-bv) || a.no-b.no;
+  });
+  return out;
+}
+
+function th(label,key,extra=''){
+  const active = state.sort.key===key;
+  const arr = active ? (state.sort.dir<0?'▼':'▲') : '';
+  return `<th data-k="${key}" class="${extra}">${label} <span class="arr">${arr}</span></th>`;
+}
+
+function valCells(values){
+  return R.map((r,i)=>{
+    const v = values[i]==null?'—':values[i];
+    return `<td class="num r-${RKEY[i]} ${r===state.rarity?'sel':''}">${v}</td>`;
+  }).join('');
+}
+
+function render(){
+  const allMode = state.stat===ALL;
+  const cols = 3 + (allMode?1:0) + R.length;
+  const data = rows();
+
+  const cardCount = new Set(data.map(d=>d.no)).size;
+  $('count').innerHTML = allMode
+    ? `Showing all <b>${cardCount}</b> cards · <b>${data.length}</b> stat lines`
+      + `${state.nest!=='All'?` in <b>${state.nest}</b>`:''}`
+      + `<span class="pill">sorted by ${state.sort.key==='rarity'?state.rarity:state.sort.key}</span>`
+    : `Showing <b>${data.length}</b> card${data.length!==1?'s':''} with <b>${state.stat}</b>`
+      + `${state.nest!=='All'?` in <b>${state.nest}</b>`:''}`
+      + `<span class="pill">sorted by ${state.sort.key==='rarity'?state.rarity:state.sort.key}</span>`;
+
+  if(!data.length){ $('results').innerHTML = `<div class="empty">No cards match. Try another stat or clear the search.</div>`; return; }
+
+  const head = `<thead><tr>
+      ${th('#','no','num')}
+      ${th('Card','name')}
+      ${th('Nest','nest')}
+      ${allMode?th('Stat','stat'):''}
+      ${R.map((r,i)=>`<th data-k="rarity" data-r="${r}" class="num r-${RKEY[i]} ${r===state.rarity?'sel':''}">${r} <span class="arr">${state.sort.key==='rarity'&&state.rarity===r?(state.sort.dir<0?'▼':'▲'):''}</span></th>`).join('')}
+    </tr></thead>`;
+
+  const body = data.map(row=>`
+    <tr class="card" data-no="${row.no}">
+      <td class="num cno">${row.no}</td>
+      <td class="cname">${row.name}</td>
+      <td class="nest">${row.nest}</td>
+      ${allMode?`<td class="stat">${row.stat}</td>`:''}
+      ${valCells(row.values)}
+    </tr>`).join('');
+
+  $('results').innerHTML = `<table>${head}<tbody>${body}</tbody></table>`;
+
+  // header sorting
+  $('results').querySelectorAll('thead th').forEach(el=>{
+    el.onclick = ()=>{
+      const k = el.dataset.k, r = el.dataset.r;
+      if(k==='rarity' && r){ state.rarity = r; $('rarity').value = r; }
+      const sameRarityCol = k==='rarity' && (!r || r===state.rarity);
+      if(state.sort.key===k && (k!=='rarity' || sameRarityCol)){ state.sort.dir *= -1; }
+      else { state.sort.key = k; state.sort.dir = (k==='name'||k==='nest'||k==='stat')?1:(k==='no'?1:-1); }
+      render();
+    };
+  });
+
+  // row expand -> all stats for that card
+  $('results').querySelectorAll('tr.card').forEach(tr=>{
+    tr.onclick = ()=>{
+      const next = tr.nextElementSibling;
+      if(next && next.classList.contains('detail')){ next.remove(); return; }
+      const c = DB.cards.find(x=>x.no==tr.dataset.no);
+      const inner = c.stats.map(s=>`<tr>
+          <td class="stat">${s.stat}</td>${valCells(s.values)}
+        </tr>`).join('');
+      const d = document.createElement('tr');
+      d.className='detail';
+      d.innerHTML = `<td colspan="${cols}"><table><thead><tr>
+          <th>All stats — ${c.name} <span class="pill">${c.nest}</span></th>
+          ${R.map((r,i)=>`<th class="num r-${RKEY[i]} ${r===state.rarity?'sel':''}">${r}</th>`).join('')}
+        </tr></thead><tbody>${inner}</tbody></table></td>`;
+      tr.after(d);
+    };
+  });
+}
+
+// ---- reference view ----
+function rk(name){ const i=R.indexOf(name); return i<0?'':`r-${RKEY[i]}`; }
+function renderRef(){
+  if($('refCards').dataset.done) return;
+
+  const packRows = REF.packOdds.map(o=>`
+    <tr><td class="${rk(o.rarity)}">${o.rarity}</td>
+      <td class="num">${o.pct}%</td>
+      <td style="width:45%"><div class="bar"><span class="${rk(o.rarity)}" style="width:${o.pct}%;background:currentColor"></span></div></td>
+    </tr>`).join('');
+
+  const boxRows = REF.boxOdds.map(o=>`
+    <tr><td class="${rk(o.rarity)}">${o.rarity}</td>
+      <td class="num">${o.roll}</td><td class="num">${o.tenth}</td></tr>`).join('');
+
+  const mastRows = REF.mastery.map(m=>`
+    <tr><td class="num cno">Lv.${m[0]}</td>
+      <td class="num stat">+${m[1]}</td>
+      <td class="num">${m[2]}</td></tr>`).join('');
+
+  $('refCards').innerHTML = `
+    <div class="rc">
+      <h3>Unidentified Monster Card Pack</h3>
+      <div class="rcsub">Rarity chance on each draw</div>
+      <table><thead><tr><th>Rarity</th><th class="num">Chance</th><th></th></tr></thead>
+        <tbody>${packRows}</tbody></table>
+    </div>
+
+    <div class="rc">
+      <h3>Monster Card Box (Lv.40)</h3>
+      <div class="rcsub">Per-roll odds, plus the guaranteed every-10th-roll table</div>
+      <table><thead><tr><th>Rarity</th><th class="num">Each roll</th><th class="num">Every 10th</th></tr></thead>
+        <tbody>${boxRows}</tbody></table>
+      <div class="note">Contains only Card No. 1 – No. 37.</div>
+    </div>
+
+    <div class="rc full">
+      <h3>Card Mastery</h3>
+      <div class="rcsub">Bonus to the card's stats per mastery level, and the Crystal of Power cost</div>
+      <table><thead><tr><th class="num">Level</th><th class="num">Stat increase</th><th class="num">Crystal of Power</th></tr></thead>
+        <tbody>${mastRows}</tbody></table>
+      <div class="note">Mastery level cap is raised to Lv.25 at Cap 70. (Crystal-of-Power figures are reproduced exactly as recorded in the source sheet.)</div>
+    </div>`;
+  $('refCards').dataset.done = '1';
+}
+
+render();
+</script>
+</body>
+</html>
