@@ -144,6 +144,40 @@
   ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--gold-deep),#7a5a1f);
     border-radius:8px;border:2px solid var(--bg2)}
 
+  /* ---------- character details ---------- */
+  .ctools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+  .ctools .spacer{flex:1}
+  .csaved{color:var(--mut);font-size:11.5px;transition:color .2s}
+  .btn{font-family:var(--serif);cursor:pointer;border-radius:9px;padding:9px 16px;
+    font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
+    border:1px solid var(--gold-deep);color:#1a1206;
+    background:linear-gradient(180deg,var(--gold2),var(--gold-deep));transition:.15s}
+  .btn:hover{filter:brightness(1.08);box-shadow:0 0 14px rgba(231,189,94,.3)}
+  .btn.ghost{background:transparent;color:var(--gold)}
+  .btn.ghost:hover{background:rgba(231,189,94,.08)}
+  .btn.danger{border-color:#7a2a22;color:#ff9a8f;background:transparent}
+  .btn.danger:hover{background:rgba(192,57,43,.12)}
+  .ctable-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 8px 26px rgba(0,0,0,.4)}
+  table.ctable{border-radius:0;border:none;box-shadow:none;min-width:100%}
+  table.ctable thead th{white-space:nowrap;text-align:center;padding:9px 11px}
+  table.ctable th.grp{color:var(--gold2);border-bottom:1px solid var(--line2)}
+  table.ctable tbody td{padding:0;border-bottom:1px solid rgba(90,69,38,.30);
+    border-right:1px solid rgba(90,69,38,.16)}
+  table.ctable tbody td input{width:100%;min-width:78px;background:transparent;border:none;
+    color:var(--txt);padding:9px 10px;font-size:13.5px;outline:none;border-radius:0}
+  table.ctable td.tnum input{text-align:right;font-variant-numeric:tabular-nums}
+  table.ctable td input:focus{background:rgba(231,189,94,.10);box-shadow:inset 0 0 0 1px var(--gold)}
+  table.ctable .sticky{position:sticky;left:0;z-index:2;background:#171009}
+  table.ctable thead th.sticky{z-index:3;background:#251b0e}
+  table.ctable td.sticky input{min-width:130px;font-weight:600;color:#f3ead7}
+  table.ctable td.act{text-align:center;padding:0 4px;border-right:none}
+  .xbtn{cursor:pointer;color:var(--mut);border:none;background:none;font-size:15px;
+    line-height:1;padding:7px 9px;border-radius:6px}
+  .xbtn:hover{color:#ff7a6d;background:rgba(192,57,43,.12)}
+  .cempty{padding:48px 24px;text-align:center;color:var(--mut);font-family:var(--serif);
+    letter-spacing:.5px;line-height:1.9;border:1px dashed var(--line2);border-radius:14px}
+
   @media(max-width:560px){ h1{font-size:28px} .tab{padding:10px 15px} }
 </style>
 </head>
@@ -157,6 +191,7 @@
   <nav class="tabs">
     <button class="tab active" data-view="cards">Card Filter</button>
     <button class="tab" data-view="ref">Odds &amp; Mastery</button>
+    <button class="tab" data-view="chars">Character Details</button>
   </nav>
 </header>
 
@@ -188,6 +223,20 @@
   <!-- ============ ODDS & MASTERY VIEW ============ -->
   <section id="refView" class="hidden">
     <div class="cards2" id="refCards"></div>
+  </section>
+
+  <!-- ============ CHARACTER DETAILS VIEW ============ -->
+  <section id="charsView" class="hidden">
+    <div class="ctools">
+      <button class="btn" id="cAdd">＋ Add character</button>
+      <button class="btn ghost" id="cExport">⭳ Export</button>
+      <button class="btn ghost" id="cImport">⭱ Import</button>
+      <input type="file" id="cFile" accept="application/json,.json" hidden>
+      <div class="spacer"></div>
+      <span class="csaved" id="csaved">Stored only in this browser (localStorage)</span>
+      <button class="btn danger" id="cClear">Clear all</button>
+    </div>
+    <div id="ctableArea"></div>
   </section>
 </div>
 
@@ -232,7 +281,9 @@ document.querySelectorAll('.tab').forEach(t=>{
     const v = t.dataset.view;
     $('cardsView').classList.toggle('hidden', v!=='cards');
     $('refView').classList.toggle('hidden', v!=='ref');
+    $('charsView').classList.toggle('hidden', v!=='chars');
     if(v==='ref') renderRef();
+    if(v==='chars') renderChars();
   };
 });
 
@@ -409,6 +460,128 @@ function renderRef(){
     </div>`;
   $('refCards').dataset.done = '1';
 }
+
+/* ============ CHARACTER DETAILS (editable, saved per-browser) ============ */
+const CHAR_KEY = 'dn-char-details-v1';
+// Column model mirrors the "Char Details" sheet. group '' = standalone column.
+const CHAR_FIELDS = [
+  { k:'nickname', label:'Nickname',      group:'',        type:'text' },
+  { k:'od',       label:'OD',            group:'Bind',    type:'num'  },
+  { k:'pd',       label:'PD',            group:'Bind',    type:'num'  },
+  { k:'eol',      label:'EOL',           group:'Bind',    type:'num'  },
+  { k:'jakard',   label:"Jakard's Eye",  group:'',        type:'num'  },
+  { k:'aec',      label:'AEC',           group:'',        type:'num'  },
+  { k:'gcs',      label:'GCS',           group:'',        type:'num'  },
+  { k:'jelly',    label:'Jelly',         group:'',        type:'num'  },
+  { k:'stamp',    label:'Stamp',         group:'',        type:'num'  },
+  { k:'gold',     label:'Gold',          group:'',        type:'num'  },
+  { k:'voucher',  label:'Voucher',       group:'Pandora', type:'text' },
+  { k:'points',   label:'Points',        group:'Pandora', type:'num'  },
+  { k:'pity',     label:'Pity',          group:'Pandora', type:'num'  },
+  { k:'dq',       label:'DQ',            group:'',        type:'num'  },
+  { k:'wtp',      label:'WTP',           group:'',        type:'num'  },
+  { k:'e20',      label:'E20',           group:'',        type:'num'  },
+  { k:'memo4',    label:'Memo IV',       group:'',        type:'num'  },
+  { k:'df',       label:'DF',            group:'',        type:'num'  },
+  { k:'gdnn',     label:'GDNN',          group:'',        type:'num'  },
+  { k:'gdnc',     label:'GDNC',          group:'',        type:'num'  }
+];
+
+let CHARS = loadChars();
+function loadChars(){ try{ const r=localStorage.getItem(CHAR_KEY); const d=r?JSON.parse(r):[]; return Array.isArray(d)?d:[]; }catch(e){ return []; } }
+let savedTimer=null;
+function saveChars(){
+  try{ localStorage.setItem(CHAR_KEY, JSON.stringify(CHARS)); }
+  catch(e){ const el=$('csaved'); if(el) el.textContent='⚠ Could not save (storage full/blocked)'; return; }
+  const el=$('csaved'); if(!el) return;
+  el.textContent='✓ Saved to this browser';
+  clearTimeout(savedTimer);
+  savedTimer=setTimeout(()=>{ el.textContent='Stored only in this browser (localStorage)'; },1500);
+}
+function esc(v){ return String(v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function charHeaderHTML(){
+  const F=CHAR_FIELDS; let top='<tr>', bottom='<tr>', i=0;
+  while(i<F.length){
+    const f=F[i];
+    if(f.group){
+      let j=i; while(j<F.length && F[j].group===f.group) j++;
+      top += `<th class="grp" colspan="${j-i}">${f.group}</th>`;
+      for(let x=i;x<j;x++) bottom += `<th>${F[x].label}</th>`;
+      i=j;
+    } else {
+      top += `<th rowspan="2"${i===0?' class="sticky"':''}>${f.label}</th>`;
+      i++;
+    }
+  }
+  top += '<th rowspan="2"></th></tr>'; bottom += '</tr>';
+  return `<thead>${top}${bottom}</thead>`;
+}
+function charRowHTML(c,i){
+  let tds='';
+  CHAR_FIELDS.forEach((f,idx)=>{
+    const cls=[]; if(idx===0) cls.push('sticky'); if(f.type==='num') cls.push('tnum');
+    const val=c[f.k]==null?'':c[f.k];
+    tds += `<td class="${cls.join(' ')}"><input data-i="${i}" data-k="${f.k}" type="text"`
+         + `${f.type==='num'?' inputmode="decimal"':''} value="${esc(val)}"></td>`;
+  });
+  tds += `<td class="act"><button class="xbtn" data-del="${i}" title="Delete character">✕</button></td>`;
+  return `<tr>${tds}</tr>`;
+}
+function renderChars(){
+  const area=$('ctableArea'); if(!area) return;
+  if(!CHARS.length){
+    area.innerHTML='<div class="cempty">No characters yet.<br>'
+      + 'Click <b>＋ Add character</b> to start your roster.<br>'
+      + 'Everything you type saves automatically — in <b>this browser only</b>.</div>';
+    return;
+  }
+  const rows=CHARS.map(charRowHTML).join('');
+  area.innerHTML=`<div class="ctable-wrap"><table class="ctable">${charHeaderHTML()}<tbody>${rows}</tbody></table></div>`;
+}
+
+// ---- toolbar + delegated editing (wired once) ----
+$('cAdd').onclick=()=>{
+  CHARS.push({}); saveChars(); renderChars();
+  const last=$('ctableArea').querySelector('tbody tr:last-child input'); if(last) last.focus();
+};
+$('cClear').onclick=()=>{
+  if(CHARS.length && confirm('Delete ALL characters from this browser? This cannot be undone.')){
+    CHARS=[]; saveChars(); renderChars();
+  }
+};
+$('cExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(CHARS,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='dn-character-details.json'; document.body.appendChild(a); a.click();
+  a.remove(); URL.revokeObjectURL(a.href);
+};
+$('cImport').onclick=()=>$('cFile').click();
+$('cFile').onchange=e=>{
+  const file=e.target.files[0]; if(!file){ return; }
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const data=JSON.parse(rd.result);
+      if(!Array.isArray(data)) throw new Error('not an array');
+      if(CHARS.length && !confirm('Replace your current roster with the imported file?')){ e.target.value=''; return; }
+      CHARS=data; saveChars(); renderChars();
+    }catch(err){ alert('That file is not a valid character-details export.'); }
+    finally{ e.target.value=''; }
+  };
+  rd.readAsText(file);
+};
+$('ctableArea').addEventListener('input',e=>{
+  const inp=e.target.closest('input'); if(!inp) return;
+  const i=+inp.dataset.i, k=inp.dataset.k;
+  if(CHARS[i]){ CHARS[i][k]=inp.value; saveChars(); }
+});
+$('ctableArea').addEventListener('click',e=>{
+  const b=e.target.closest('[data-del]'); if(!b) return;
+  const i=+b.dataset.del;
+  const nm=(CHARS[i]&&CHARS[i].nickname)?` "${CHARS[i].nickname}"`:'';
+  if(confirm(`Delete character${nm}?`)){ CHARS.splice(i,1); saveChars(); renderChars(); }
+});
 
 render();
 </script>
