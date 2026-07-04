@@ -160,20 +160,20 @@
   /* table hugs its content (no stretching) so checkbox columns stay narrow */
   .ctable-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;
     box-shadow:0 8px 26px rgba(0,0,0,.4);width:fit-content;max-width:100%}
-  table.ctable{border-radius:0;border:none;box-shadow:none;width:auto;table-layout:auto}
-  table.ctable thead th{white-space:nowrap;text-align:center;padding:8px 8px;font-size:11px}
-  table.ctable thead th.wkh{padding:8px 4px;font-size:10.5px}
+  table.ctable{border-radius:0;border:none;box-shadow:none;table-layout:fixed}
+  table.ctable thead th{white-space:normal;text-align:center;padding:8px 6px;font-size:11px;line-height:1.2}
+  table.ctable thead th.wkh{padding:8px 2px;font-size:10px}
   table.ctable th.grp{color:var(--gold2);border-bottom:1px solid var(--line2)}
   table.ctable thead th.wk{background:#20180d;color:var(--gold2)}
   table.ctable tbody td{padding:0;border-bottom:1px solid rgba(90,69,38,.30);
     border-right:1px solid rgba(90,69,38,.16)}
-  table.ctable tbody td input[type=text]{width:100%;min-width:48px;background:transparent;border:none;
-    color:var(--txt);padding:8px 8px;font-size:13px;outline:none;border-radius:0}
+  table.ctable tbody td input[type=text]{width:100%;min-width:0;background:transparent;border:none;
+    color:var(--txt);padding:7px 6px;font-size:13px;outline:none;border-radius:0}
   table.ctable td.tnum input{text-align:right;font-variant-numeric:tabular-nums}
   table.ctable td input[type=text]:focus{background:rgba(231,189,94,.10);box-shadow:inset 0 0 0 1px var(--gold)}
   table.ctable .sticky{position:sticky;left:0;z-index:2;background:#171009}
   table.ctable thead th.sticky{z-index:3;background:#251b0e}
-  table.ctable td.sticky input{min-width:118px;font-weight:600;color:#f3ead7}
+  table.ctable td.sticky input{min-width:0;font-weight:600;color:#f3ead7}
   table.ctable td.tchk{text-align:center;padding:0;background:rgba(231,189,94,.03)}
   table.ctable td.tchk input{width:17px;height:17px;margin:8px auto;cursor:pointer;
     accent-color:var(--gold);display:block}
@@ -541,6 +541,11 @@ function charRowHTML(c,i){
   tds += `<td class="act"><button class="xbtn" data-del="${i}" title="Delete character">✕</button></td>`;
   return `<tr>${tds}</tr>`;
 }
+function colW(f){ return f.type==='check' ? 36 : f.type==='text' ? (f.k==='nickname'?118:72) : 46; }
+function charColgroup(){
+  const cols = CHAR_FIELDS.map(f=>`<col style="width:${colW(f)}px">`).join('');
+  return `<colgroup>${cols}<col style="width:36px"></colgroup>`;
+}
 function renderChars(){
   const area=$('ctableArea'); if(!area) return;
   if(!CHARS.length){
@@ -549,8 +554,10 @@ function renderChars(){
       + 'Everything you type saves automatically — in <b>this browser only</b>.</div>';
     return;
   }
+  const total = CHAR_FIELDS.reduce((s,f)=>s+colW(f),0) + 36;
   const rows=CHARS.map(charRowHTML).join('');
-  area.innerHTML=`<div class="ctable-wrap"><table class="ctable">${charHeaderHTML()}<tbody>${rows}</tbody></table></div>`;
+  area.innerHTML=`<div class="ctable-wrap"><table class="ctable" style="width:${total}px">`
+    +`${charColgroup()}${charHeaderHTML()}<tbody>${rows}</tbody></table></div>`;
 }
 
 // ---- toolbar + delegated editing (wired once) ----
