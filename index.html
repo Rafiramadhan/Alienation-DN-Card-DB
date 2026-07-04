@@ -180,7 +180,10 @@
   table.ctable td.tchk{text-align:center;padding:0;background:rgba(231,189,94,.03)}
   table.ctable td.tchk input{width:17px;height:17px;margin:8px auto;cursor:pointer;
     accent-color:var(--gold);display:block}
-  table.ctable td.act{text-align:center;padding:0 4px;border-right:none}
+  table.ctable td.sticky .nickcell{display:flex;align-items:center;gap:2px}
+  table.ctable td.sticky .nickcell input{flex:1;min-width:0}
+  table.ctable td.sticky .nickcell .xbtn{opacity:0;flex:none;font-size:13px;padding:5px 7px}
+  table.ctable tbody tr:hover .nickcell .xbtn{opacity:.85}
   .xbtn{cursor:pointer;color:var(--mut);border:none;background:none;font-size:15px;
     line-height:1;padding:7px 9px;border-radius:6px}
   .xbtn:hover{color:#ff7a6d;background:rgba(192,57,43,.12)}
@@ -526,7 +529,7 @@ function charHeaderHTML(){
       i++;
     }
   }
-  top += '<th rowspan="2"></th></tr>'; bottom += '</tr>';
+  top += '</tr>'; bottom += '</tr>';
   return `<thead>${top}${bottom}</thead>`;
 }
 function charRowHTML(c,i){
@@ -538,10 +541,15 @@ function charRowHTML(c,i){
     }
     const cls=[]; if(idx===0) cls.push('sticky'); if(f.type==='num') cls.push('tnum');
     const val=c[f.k]==null?'':c[f.k];
-    tds += `<td class="${cls.join(' ')}"><input data-i="${i}" data-k="${f.k}" type="text"`
-         + `${f.type==='num'?' inputmode="decimal"':''} value="${esc(val)}"></td>`;
+    const input=`<input data-i="${i}" data-k="${f.k}" type="text"`
+      + `${f.type==='num'?' inputmode="decimal"':''} value="${esc(val)}">`;
+    if(idx===0){
+      tds += `<td class="${cls.join(' ')}"><div class="nickcell">${input}`
+           + `<button class="xbtn" data-del="${i}" title="Delete character">✕</button></div></td>`;
+    } else {
+      tds += `<td class="${cls.join(' ')}">${input}</td>`;
+    }
   });
-  tds += `<td class="act"><button class="xbtn" data-del="${i}" title="Delete character">✕</button></td>`;
   return `<tr>${tds}</tr>`;
 }
 // relative column widths (used as proportions since the table is width:100%)
@@ -554,8 +562,8 @@ function colW(f){
   return 56; // numbers
 }
 function charColgroup(){
-  const ws = CHAR_FIELDS.map(colW); ws.push(44);        // + actions column
-  const sum = ws.reduce((a,b)=>a+b,0);                  // normalize to 100% so no leftover "ghost" column
+  const ws = CHAR_FIELDS.map(colW);
+  const sum = ws.reduce((a,b)=>a+b,0);                  // normalize to 100% so no leftover column
   const cols = ws.map(w=>`<col style="width:${(w/sum*100).toFixed(3)}%">`).join('');
   return `<colgroup>${cols}</colgroup>`;
 }
