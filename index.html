@@ -181,6 +181,8 @@
   table.ctable td.tchk input{width:18px;height:18px;min-width:0;margin:8px auto;cursor:pointer;
     accent-color:var(--gold);display:block}
   table.ctable thead th .dly{color:var(--gold2);font-size:9px;vertical-align:super;opacity:.85}
+  table.ctable thead th.hastip{cursor:help;text-decoration:underline dotted rgba(231,189,94,.45);
+    text-underline-offset:3px}
   table.ctable td.sticky .nickcell{display:flex;align-items:center;gap:2px}
   table.ctable td.sticky .nickcell input{flex:1;min-width:0}
   table.ctable td.sticky .nickcell .xbtn{opacity:0;flex:none;font-size:13px;padding:5px 7px}
@@ -479,27 +481,27 @@ function renderRef(){
 const CHAR_KEY = 'dn-char-details-v1';
 // Column model mirrors the "Char Details" sheet. group '' = standalone column.
 const CHAR_FIELDS = [
-  { k:'nickname', label:'Nickname',      group:'',        type:'text' },
-  { k:'od',       label:'OD',            group:'Bind',    type:'num'  },
-  { k:'pd',       label:'PD',            group:'Bind',    type:'num'  },
-  { k:'eol',      label:'EOL',           group:'Bind',    type:'num'  },
-  { k:'jakard',   label:"Jakard's Eye",  group:'',        type:'num'  },
-  { k:'aec',      label:'AEC',           group:'',        type:'num'  },
-  { k:'gcs',      label:'GCS',           group:'',        type:'num'  },
-  { k:'jelly',    label:'Jelly',         group:'',        type:'num'  },
-  { k:'stamp',    label:'Stamp',         group:'',        type:'num'  },
-  { k:'gold',     label:'Gold',          group:'',        type:'num'  },
-  { k:'voucher',  label:'Voucher',       group:'Pandora', type:'text' },
-  { k:'points',   label:'Points',        group:'Pandora', type:'num'  },
-  { k:'pity',     label:'Pity',          group:'Pandora', type:'num'  },
-  { k:'dq',       label:'DQ',            group:'Weekly',  type:'check' },
-  { k:'wtp',      label:'WTP',           group:'Weekly',  type:'check' },
-  { k:'e20',      label:'E20',           group:'Weekly',  type:'check' },
-  { k:'memo4',    label:'Memo IV',       group:'Weekly',  type:'check' },
-  { k:'df',       label:'DF',            group:'Weekly',  type:'check' },
-  { k:'gdnc',     label:'GDNC',          group:'Weekly',  type:'check' },
-  { k:'gdnhc',    label:'GDNHC',         group:'Weekly',  type:'check' },
-  { k:'ddnc',     label:'DDNC',          group:'Weekly',  type:'check' }
+  { k:'nickname', label:'Nickname',      group:'',        type:'text'  },
+  { k:'od',       label:'OD',            group:'Bind',    type:'num',   tip:'Ordinary Diamond' },
+  { k:'pd',       label:'PD',            group:'Bind',    type:'num',   tip:'Polished Diamond' },
+  { k:'eol',      label:'EOL',           group:'Bind',    type:'num',   tip:'Essence of Life' },
+  { k:'jakard',   label:"Jakard's Eye",  group:'',        type:'num'   },
+  { k:'aec',      label:'AEC',           group:'',        type:'num',   tip:'Activeness Exchange Coupon' },
+  { k:'gec',      label:'GEC',           group:'',        type:'num',   tip:'Gachapon Exchange Coupon' },
+  { k:'jelly',    label:'Jelly',         group:'',        type:'num'   },
+  { k:'stamp',    label:'Stamp',         group:'',        type:'num'   },
+  { k:'gold',     label:'Gold',          group:'',        type:'num'   },
+  { k:'voucher',  label:'Voucher',       group:'Pandora', type:'text'  },
+  { k:'points',   label:'Points',        group:'Pandora', type:'num'   },
+  { k:'pity',     label:'Pity',          group:'Pandora', type:'num'   },
+  { k:'dq',       label:'DQ',            group:'Weekly',  type:'check', tip:'Daily Quest' },
+  { k:'wtp',      label:'WTP',           group:'Weekly',  type:'check', tip:'Wonderful Theme Park' },
+  { k:'e20',      label:'E20',           group:'Weekly',  type:'check', tip:'Enhance 20x' },
+  { k:'memo4',    label:'Memo IV',       group:'Weekly',  type:'check', tip:'Memoria IV' },
+  { k:'df',       label:'DF',            group:'Weekly',  type:'check', tip:'Dragon Fellowship' },
+  { k:'gdnc',     label:'GDNC',          group:'Weekly',  type:'check', tip:'Green Dragon Nest Classic' },
+  { k:'gdnhc',    label:'GDNHC',         group:'Weekly',  type:'check', tip:'Green Dragon Nest Hard Core' },
+  { k:'ddnc',     label:'DDNC',          group:'Weekly',  type:'check', tip:'Desert Dragon Nest Classic' }
 ];
 
 let CHARS = loadChars();
@@ -547,10 +549,12 @@ function charHeaderHTML(){
   let bottom='<tr>';
   F.forEach((f,idx)=>{
     const cls=[]; if(idx===0) cls.push('sticky'); if(f.group==='Weekly') cls.push('wkh');
-    const lbl = f.k==='dq'
-      ? `${f.label} <span class="dly" title="Resets daily at 08:00">↻</span>`
-      : f.label;
-    bottom += `<th${cls.length?` class="${cls.join(' ')}"`:''}>${lbl}</th>`;
+    if(f.tip) cls.push('hastip');
+    let title = f.tip || '';
+    if(f.k==='dq') title = (title?title+' — ':'') + 'resets daily at 08:00';
+    const lbl = f.k==='dq' ? `${f.label} <span class="dly">↻</span>` : f.label;
+    const attrs = `${cls.length?` class="${cls.join(' ')}"`:''}${title?` title="${esc(title)}"`:''}`;
+    bottom += `<th${attrs}>${lbl}</th>`;
   });
   top += '</tr>'; bottom += '</tr>';
   return `<thead>${top}${bottom}</thead>`;
