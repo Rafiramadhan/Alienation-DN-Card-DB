@@ -15,6 +15,7 @@ const ROOT = __dirname;
 const CSV = path.join(ROOT, 'database.csv');
 const TEMPLATE = path.join(ROOT, 'src', 'template.html');
 const LOGO = path.join(ROOT, 'assets', 'dn-logo.png');
+const CLASSES_DIR = path.join(ROOT, 'assets', 'classes');
 const OUT = path.join(ROOT, 'index.html');
 
 const SHEET_ID = '1vTvRW7hDA5tGE-BXDQrCC3Sf74EdNvcoNhUVbSLLYOY';
@@ -116,6 +117,26 @@ function parse(raw) {
     if (!fs.existsSync(LOGO)) { console.error('Missing assets/dn-logo.png'); process.exit(1); }
     const b64 = fs.readFileSync(LOGO).toString('base64');
     html = html.replace('__LOGO__', 'data:image/png;base64,' + b64);
+  }
+
+  // Embed the class icons as a { "Class Name": dataURI } map.
+  if (html.includes('__CLASSES__')) {
+    const map = {};
+    if (fs.existsSync(CLASSES_DIR)) {
+      for (const f of fs.readdirSync(CLASSES_DIR).sort()) {
+        const full = path.join(CLASSES_DIR, f);
+        if (!fs.statSync(full).isFile()) continue;
+        const buf = fs.readFileSync(full);
+        const mime = buf.slice(0, 4).toString('latin1') === 'RIFF' ? 'image/webp'
+                   : buf[0] === 0x89 ? 'image/png'
+                   : buf.slice(0, 3).toString('latin1') === 'GIF' ? 'image/gif'
+                   : 'image/jpeg';
+        const name = f.replace(/\.[^.]+$/, '').replace(/_/g, ' ');
+        map[name] = `data:${mime};base64,${buf.toString('base64')}`;
+      }
+    }
+    html = html.replace('__CLASSES__', JSON.stringify(map));
+    console.log('Embedded ' + Object.keys(map).length + ' class icons');
   }
 
   fs.writeFileSync(OUT, html);

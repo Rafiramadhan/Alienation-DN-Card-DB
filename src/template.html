@@ -188,10 +188,22 @@
     font-weight:600;letter-spacing:.3px;line-height:1.35;box-shadow:0 6px 18px rgba(0,0,0,.5);
     pointer-events:none;white-space:nowrap;max-width:280px;text-transform:none}
   .chartip[hidden]{display:none}
-  table.ctable td.sticky .nickcell{display:flex;align-items:center;gap:2px}
+  table.ctable td.sticky .nickcell{display:flex;align-items:center;gap:4px}
   table.ctable td.sticky .nickcell input{flex:1;min-width:0}
   table.ctable td.sticky .nickcell .xbtn{opacity:0;flex:none;font-size:13px;padding:5px 7px}
   table.ctable tbody tr:hover .nickcell .xbtn{opacity:.85}
+  .cicon{width:22px;height:22px;flex:none;object-fit:contain}
+  .cnoicon{display:inline-block;border:1px dashed var(--line2);border-radius:4px;opacity:.45}
+  table.ctable td.tcls{padding:3px 6px}
+  table.ctable td.tcls select{width:100%;min-width:0;background:#120d07;color:var(--txt);
+    border:1px solid var(--line2);border-radius:6px;padding:6px 6px;font-size:12px;outline:none;cursor:pointer}
+  table.ctable td.tcls select:focus{border-color:var(--gold)}
+  /* per-row glow tinted by the selected class's icon colour */
+  table.ctable tr.hasglow{background:linear-gradient(90deg,rgba(var(--c),.13),transparent 55%)}
+  table.ctable tr.hasglow td.sticky{background:linear-gradient(90deg,rgba(var(--c),.20),#171009 72%);
+    box-shadow:inset 4px 0 0 rgba(var(--c),.9)}
+  table.ctable tr.hasglow:hover{background:linear-gradient(90deg,rgba(var(--c),.24),rgba(231,189,94,.05) 60%)}
+  table.ctable tr.hasglow .cicon{filter:drop-shadow(0 0 5px rgba(var(--c),.55))}
   .xbtn{cursor:pointer;color:var(--mut);border:none;background:none;font-size:15px;
     line-height:1;padding:7px 9px;border-radius:6px}
   .xbtn:hover{color:#ff7a6d;background:rgba(192,57,43,.12)}
@@ -266,6 +278,8 @@ const DB = __DATA__;
 const R = DB.meta.rarities;                 // [Magic,Rare,Epic,Unique,Legend]
 const RKEY = ['magic','rare','epic','unique','legend'];
 const ALL = '__ALL__';
+const CLASS_ICONS = __CLASSES__;            // { "Class Name": dataURI }
+const CLASS_NAMES = Object.keys(CLASS_ICONS).sort();
 
 // ---- reference tables (from the sheet's side columns) ----
 const REF = {
@@ -487,6 +501,7 @@ const CHAR_KEY = 'dn-char-details-v1';
 // Column model mirrors the "Char Details" sheet. group '' = standalone column.
 const CHAR_FIELDS = [
   { k:'nickname', label:'Nickname',      group:'',        type:'text'  },
+  { k:'cls',      label:'Class',         group:'',        type:'class' },
   { k:'od',       label:'OD',            group:'Bind',    type:'num',   tip:'Ordinary Diamond' },
   { k:'pd',       label:'PD',            group:'Bind',    type:'num',   tip:'Polished Diamond' },
   { k:'eol',      label:'EOL',           group:'Bind',    type:'num',   tip:'Essence of Life' },
@@ -572,23 +587,33 @@ function charRowHTML(c,i){
       tds += `<td class="tchk"><input type="checkbox" data-i="${i}" data-k="${f.k}"${c[f.k]?' checked':''}></td>`;
       return;
     }
+    if(f.type==='class'){
+      const opts = ['<option value="">— class —</option>'].concat(
+        CLASS_NAMES.map(n=>`<option value="${esc(n)}"${c.cls===n?' selected':''}>${esc(n)}</option>`)).join('');
+      tds += `<td class="tcls"><select class="clssel" data-i="${i}" data-k="cls">${opts}</select></td>`;
+      return;
+    }
     const cls=[]; if(idx===0) cls.push('sticky'); if(f.type==='num') cls.push('tnum');
     const val=c[f.k]==null?'':c[f.k];
     const input=`<input data-i="${i}" data-k="${f.k}" type="text"`
       + `${f.type==='num'?' inputmode="decimal"':''} value="${esc(val)}">`;
     if(idx===0){
-      tds += `<td class="${cls.join(' ')}"><div class="nickcell">${input}`
+      const icon = c.cls && CLASS_ICONS[c.cls]
+        ? `<img class="cicon" src="${CLASS_ICONS[c.cls]}" alt="" title="${esc(c.cls)}">`
+        : `<span class="cicon cnoicon" title="No class selected"></span>`;
+      tds += `<td class="${cls.join(' ')}"><div class="nickcell">${icon}${input}`
            + `<button class="xbtn" data-del="${i}" title="Delete character">✕</button></div></td>`;
     } else {
       tds += `<td class="${cls.join(' ')}">${input}</td>`;
     }
   });
-  return `<tr>${tds}</tr>`;
+  return `<tr class="crow" data-i="${i}">${tds}</tr>`;
 }
 // relative column widths (used as proportions since the table is width:100%)
 function colW(f){
   if(f.type==='check') return 48;
-  if(f.k==='nickname') return 140;
+  if(f.type==='class') return 116;
+  if(f.k==='nickname') return 150;
   if(f.k==='voucher')  return 96;
   if(f.k==='jakard')   return 78;
   if(f.type==='text')  return 80;
@@ -611,6 +636,42 @@ function renderChars(){
   const rows=CHARS.map(charRowHTML).join('');
   area.innerHTML=`<div class="ctable-wrap"><table class="ctable">`
     +`${charColgroup()}${charHeaderHTML()}<tbody>${rows}</tbody></table></div>`;
+  applyRowGlows();
+}
+
+// ---- per-row glow tinted by the class icon's dominant color ----
+const CLASS_COLORS={};   // cls -> "r,g,b" (or null)
+function ensureColor(cls, cb){
+  if(cls in CLASS_COLORS){ cb(CLASS_COLORS[cls]); return; }
+  const src=CLASS_ICONS[cls]; if(!src){ CLASS_COLORS[cls]=null; cb(null); return; }
+  const img=new Image();
+  img.onload=()=>{
+    let out=null;
+    try{
+      const s=28, cv=document.createElement('canvas'); cv.width=s; cv.height=s;
+      const ctx=cv.getContext('2d'); ctx.drawImage(img,0,0,s,s);
+      const d=ctx.getImageData(0,0,s,s).data;
+      let r=0,g=0,b=0,w=0;
+      for(let p=0;p<d.length;p+=4){
+        const a=d[p+3]; if(a<40) continue;
+        const R=d[p],G=d[p+1],B=d[p+2];
+        const sat=Math.max(R,G,B)-Math.min(R,G,B);   // weight vivid pixels so the hue reads
+        const wt=sat*sat/255+6; r+=R*wt; g+=G*wt; b+=B*wt; w+=wt;
+      }
+      if(w) out=Math.round(r/w)+','+Math.round(g/w)+','+Math.round(b/w);
+    }catch(e){}
+    CLASS_COLORS[cls]=out; cb(out);
+  };
+  img.onerror=()=>{ CLASS_COLORS[cls]=null; cb(null); };
+  img.src=src;
+}
+function applyRowGlows(){
+  $('ctableArea').querySelectorAll('tr.crow').forEach(tr=>{
+    const i=+tr.dataset.i, cls=CHARS[i]&&CHARS[i].cls;
+    const clear=()=>{ tr.classList.remove('hasglow'); tr.style.removeProperty('--c'); };
+    if(!cls){ clear(); return; }
+    ensureColor(cls, col=>{ if(col){ tr.style.setProperty('--c',col); tr.classList.add('hasglow'); } else clear(); });
+  });
 }
 
 // ---- toolbar + delegated editing (wired once) ----
@@ -656,6 +717,11 @@ $('ctableArea').addEventListener('input',e=>{
   const inp=e.target.closest('input'); if(!inp) return;
   const i=+inp.dataset.i, k=inp.dataset.k;
   if(CHARS[i]){ CHARS[i][k] = inp.type==='checkbox' ? inp.checked : inp.value; saveChars(); }
+});
+$('ctableArea').addEventListener('change',e=>{
+  const sel=e.target.closest('select[data-k]'); if(!sel) return;
+  const i=+sel.dataset.i;
+  if(CHARS[i]){ CHARS[i][sel.dataset.k]=sel.value; saveChars(); renderChars(); }
 });
 $('ctableArea').addEventListener('click',e=>{
   const b=e.target.closest('[data-del]'); if(!b) return;
