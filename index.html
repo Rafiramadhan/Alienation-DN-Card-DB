@@ -148,6 +148,10 @@
   .ctools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
   .ctools .spacer{flex:1}
   .csaved{color:var(--mut);font-size:11.5px;transition:color .2s}
+  .goldtotal{font-family:var(--serif);font-size:12.5px;font-weight:700;letter-spacing:.5px;
+    color:var(--gold);border:1px solid var(--gold-deep);border-radius:9px;padding:8px 14px;
+    background:linear-gradient(180deg,rgba(231,189,94,.12),rgba(231,189,94,.03))}
+  .goldtotal b{color:#fff2cf;font-variant-numeric:tabular-nums}
   .btn{font-family:var(--serif);cursor:pointer;border-radius:9px;padding:9px 16px;
     font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;
     border:1px solid var(--gold-deep);color:#1a1206;
@@ -265,6 +269,7 @@
       <button class="btn ghost" id="cImport">⭱ Import</button>
       <input type="file" id="cFile" accept="application/json,.json" hidden>
       <button class="btn ghost" id="cResetWk">↺ Reset weeklies</button>
+      <span class="goldtotal" id="goldTotal">Total Gold&nbsp;·&nbsp;<b id="goldTotalVal">0</b></span>
       <div class="spacer"></div>
       <span class="csaved" id="csaved">Stored only in this browser (localStorage)</span>
       <button class="btn danger" id="cClear">Clear all</button>
@@ -625,8 +630,15 @@ function charColgroup(){
   const cols = ws.map(w=>`<col style="width:${(w/sum*100).toFixed(3)}%">`).join('');
   return `<colgroup>${cols}</colgroup>`;
 }
+function updateGoldTotal(){
+  const el=$('goldTotalVal'); if(!el) return;
+  let sum=0;
+  CHARS.forEach(c=>{ const n=parseFloat(String(c.gold==null?'':c.gold).replace(/[^0-9.\-]/g,'')); if(!isNaN(n)) sum+=n; });
+  el.textContent = sum.toLocaleString();
+}
 function renderChars(){
   const area=$('ctableArea'); if(!area) return;
+  updateGoldTotal();
   if(!CHARS.length){
     area.innerHTML='<div class="cempty">No characters yet.<br>'
       + 'Click <b>＋ Add character</b> to start your roster.<br>'
@@ -716,7 +728,7 @@ $('cFile').onchange=e=>{
 $('ctableArea').addEventListener('input',e=>{
   const inp=e.target.closest('input'); if(!inp) return;
   const i=+inp.dataset.i, k=inp.dataset.k;
-  if(CHARS[i]){ CHARS[i][k] = inp.type==='checkbox' ? inp.checked : inp.value; saveChars(); }
+  if(CHARS[i]){ CHARS[i][k] = inp.type==='checkbox' ? inp.checked : inp.value; saveChars(); if(k==='gold') updateGoldTotal(); }
 });
 $('ctableArea').addEventListener('change',e=>{
   const sel=e.target.closest('select[data-k]'); if(!sel) return;
