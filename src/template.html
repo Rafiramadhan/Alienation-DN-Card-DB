@@ -493,9 +493,9 @@ const CHAR_FIELDS = [
   { k:'e20',      label:'E20',           group:'Weekly',  type:'check' },
   { k:'memo4',    label:'Memo IV',       group:'Weekly',  type:'check' },
   { k:'df',       label:'DF',            group:'Weekly',  type:'check' },
-  { k:'gdnn',     label:'GDNN',          group:'Weekly',  type:'check' },
   { k:'gdnc',     label:'GDNC',          group:'Weekly',  type:'check' },
-  { k:'gdnhc',    label:'GDNHC',         group:'Weekly',  type:'check' }
+  { k:'gdnhc',    label:'GDNHC',         group:'Weekly',  type:'check' },
+  { k:'ddnc',     label:'DDNC',          group:'Weekly',  type:'check' }
 ];
 
 let CHARS = loadChars();
@@ -554,8 +554,10 @@ function colW(f){
   return 56; // numbers
 }
 function charColgroup(){
-  const cols = CHAR_FIELDS.map(f=>`<col style="width:${colW(f)}px">`).join('');
-  return `<colgroup>${cols}<col style="width:44px"></colgroup>`;
+  const ws = CHAR_FIELDS.map(colW); ws.push(44);        // + actions column
+  const sum = ws.reduce((a,b)=>a+b,0);                  // normalize to 100% so no leftover "ghost" column
+  const cols = ws.map(w=>`<col style="width:${(w/sum*100).toFixed(3)}%">`).join('');
+  return `<colgroup>${cols}</colgroup>`;
 }
 function renderChars(){
   const area=$('ctableArea'); if(!area) return;
