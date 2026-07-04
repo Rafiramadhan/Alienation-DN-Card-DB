@@ -157,20 +157,26 @@
   .btn.ghost:hover{background:rgba(231,189,94,.08)}
   .btn.danger{border-color:#7a2a22;color:#ff9a8f;background:transparent}
   .btn.danger:hover{background:rgba(192,57,43,.12)}
+  /* let the roster break out of the 1100px column so every column fits on screen */
+  #charsView{position:relative;left:50%;transform:translateX(-50%);width:96vw;max-width:1480px}
   .ctable-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;
     box-shadow:0 8px 26px rgba(0,0,0,.4)}
-  table.ctable{border-radius:0;border:none;box-shadow:none;min-width:100%}
-  table.ctable thead th{white-space:nowrap;text-align:center;padding:9px 11px}
+  table.ctable{border-radius:0;border:none;box-shadow:none;width:100%;table-layout:auto}
+  table.ctable thead th{white-space:nowrap;text-align:center;padding:8px 8px;font-size:11px}
   table.ctable th.grp{color:var(--gold2);border-bottom:1px solid var(--line2)}
+  table.ctable thead th.wk{background:#20180d;color:var(--gold2)}
   table.ctable tbody td{padding:0;border-bottom:1px solid rgba(90,69,38,.30);
     border-right:1px solid rgba(90,69,38,.16)}
-  table.ctable tbody td input{width:100%;min-width:78px;background:transparent;border:none;
-    color:var(--txt);padding:9px 10px;font-size:13.5px;outline:none;border-radius:0}
+  table.ctable tbody td input[type=text]{width:100%;min-width:48px;background:transparent;border:none;
+    color:var(--txt);padding:8px 8px;font-size:13px;outline:none;border-radius:0}
   table.ctable td.tnum input{text-align:right;font-variant-numeric:tabular-nums}
-  table.ctable td input:focus{background:rgba(231,189,94,.10);box-shadow:inset 0 0 0 1px var(--gold)}
+  table.ctable td input[type=text]:focus{background:rgba(231,189,94,.10);box-shadow:inset 0 0 0 1px var(--gold)}
   table.ctable .sticky{position:sticky;left:0;z-index:2;background:#171009}
   table.ctable thead th.sticky{z-index:3;background:#251b0e}
-  table.ctable td.sticky input{min-width:130px;font-weight:600;color:#f3ead7}
+  table.ctable td.sticky input{min-width:118px;font-weight:600;color:#f3ead7}
+  table.ctable td.tchk{text-align:center;padding:0;background:rgba(231,189,94,.03)}
+  table.ctable td.tchk input{width:17px;height:17px;margin:8px auto;cursor:pointer;
+    accent-color:var(--gold);display:block}
   table.ctable td.act{text-align:center;padding:0 4px;border-right:none}
   .xbtn{cursor:pointer;color:var(--mut);border:none;background:none;font-size:15px;
     line-height:1;padding:7px 9px;border-radius:6px}
@@ -478,13 +484,14 @@ const CHAR_FIELDS = [
   { k:'voucher',  label:'Voucher',       group:'Pandora', type:'text' },
   { k:'points',   label:'Points',        group:'Pandora', type:'num'  },
   { k:'pity',     label:'Pity',          group:'Pandora', type:'num'  },
-  { k:'dq',       label:'DQ',            group:'',        type:'num'  },
-  { k:'wtp',      label:'WTP',           group:'',        type:'num'  },
-  { k:'e20',      label:'E20',           group:'',        type:'num'  },
-  { k:'memo4',    label:'Memo IV',       group:'',        type:'num'  },
-  { k:'df',       label:'DF',            group:'',        type:'num'  },
-  { k:'gdnn',     label:'GDNN',          group:'',        type:'num'  },
-  { k:'gdnc',     label:'GDNC',          group:'',        type:'num'  }
+  { k:'dq',       label:'DQ',            group:'Weekly',  type:'check' },
+  { k:'wtp',      label:'WTP',           group:'Weekly',  type:'check' },
+  { k:'e20',      label:'E20',           group:'Weekly',  type:'check' },
+  { k:'memo4',    label:'Memo IV',       group:'Weekly',  type:'check' },
+  { k:'df',       label:'DF',            group:'Weekly',  type:'check' },
+  { k:'gdnn',     label:'GDNN',          group:'Weekly',  type:'check' },
+  { k:'gdnc',     label:'GDNC',          group:'Weekly',  type:'check' },
+  { k:'gdnhc',    label:'GDNHC',         group:'Weekly',  type:'check' }
 ];
 
 let CHARS = loadChars();
@@ -506,7 +513,7 @@ function charHeaderHTML(){
     const f=F[i];
     if(f.group){
       let j=i; while(j<F.length && F[j].group===f.group) j++;
-      top += `<th class="grp" colspan="${j-i}">${f.group}</th>`;
+      top += `<th class="grp${f.group==='Weekly'?' wk':''}" colspan="${j-i}">${f.group}</th>`;
       for(let x=i;x<j;x++) bottom += `<th>${F[x].label}</th>`;
       i=j;
     } else {
@@ -520,6 +527,10 @@ function charHeaderHTML(){
 function charRowHTML(c,i){
   let tds='';
   CHAR_FIELDS.forEach((f,idx)=>{
+    if(f.type==='check'){
+      tds += `<td class="tchk"><input type="checkbox" data-i="${i}" data-k="${f.k}"${c[f.k]?' checked':''}></td>`;
+      return;
+    }
     const cls=[]; if(idx===0) cls.push('sticky'); if(f.type==='num') cls.push('tnum');
     const val=c[f.k]==null?'':c[f.k];
     tds += `<td class="${cls.join(' ')}"><input data-i="${i}" data-k="${f.k}" type="text"`
@@ -574,7 +585,7 @@ $('cFile').onchange=e=>{
 $('ctableArea').addEventListener('input',e=>{
   const inp=e.target.closest('input'); if(!inp) return;
   const i=+inp.dataset.i, k=inp.dataset.k;
-  if(CHARS[i]){ CHARS[i][k]=inp.value; saveChars(); }
+  if(CHARS[i]){ CHARS[i][k] = inp.type==='checkbox' ? inp.checked : inp.value; saveChars(); }
 });
 $('ctableArea').addEventListener('click',e=>{
   const b=e.target.closest('[data-del]'); if(!b) return;
