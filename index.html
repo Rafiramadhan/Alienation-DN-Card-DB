@@ -183,6 +183,11 @@
   table.ctable thead th .dly{color:var(--gold2);font-size:9px;vertical-align:super;opacity:.85}
   table.ctable thead th.hastip{cursor:help;text-decoration:underline dotted rgba(231,189,94,.45);
     text-underline-offset:3px}
+  .chartip{position:fixed;z-index:9999;background:#241a0e;color:var(--gold2);
+    border:1px solid var(--line2);padding:6px 10px;border-radius:8px;font-size:11.5px;
+    font-weight:600;letter-spacing:.3px;line-height:1.35;box-shadow:0 6px 18px rgba(0,0,0,.5);
+    pointer-events:none;white-space:nowrap;max-width:280px;text-transform:none}
+  .chartip[hidden]{display:none}
   table.ctable td.sticky .nickcell{display:flex;align-items:center;gap:2px}
   table.ctable td.sticky .nickcell input{flex:1;min-width:0}
   table.ctable td.sticky .nickcell .xbtn{opacity:0;flex:none;font-size:13px;padding:5px 7px}
@@ -553,7 +558,7 @@ function charHeaderHTML(){
     let title = f.tip || '';
     if(f.k==='dq') title = (title?title+' — ':'') + 'resets daily at 08:00';
     const lbl = f.k==='dq' ? `${f.label} <span class="dly">↻</span>` : f.label;
-    const attrs = `${cls.length?` class="${cls.join(' ')}"`:''}${title?` title="${esc(title)}"`:''}`;
+    const attrs = `${cls.length?` class="${cls.join(' ')}"`:''}${title?` data-tip="${esc(title)}"`:''}`;
     bottom += `<th${attrs}>${lbl}</th>`;
   });
   top += '</tr>'; bottom += '</tr>';
@@ -657,6 +662,26 @@ $('ctableArea').addEventListener('click',e=>{
   const nm=(CHARS[i]&&CHARS[i].nickname)?` "${CHARS[i].nickname}"`:'';
   if(confirm(`Delete character${nm}?`)){ CHARS.splice(i,1); saveChars(); renderChars(); }
 });
+
+// ---- fast custom tooltips for the abbreviation headers ----
+// (appended to <body> so the fixed position isn't affected by #charsView's transform)
+const tipEl=document.createElement('div'); tipEl.className='chartip'; tipEl.hidden=true;
+document.body.appendChild(tipEl);
+let tipPinned=false;
+function showTip(th){
+  const t=th.getAttribute('data-tip'); if(!t) return;
+  tipEl.textContent=t; tipEl.hidden=false;
+  const r=th.getBoundingClientRect(), tw=tipEl.offsetWidth, thh=tipEl.offsetHeight;
+  let left=Math.max(6, Math.min(r.left+r.width/2-tw/2, window.innerWidth-tw-6));
+  let top=r.bottom+6; if(top+thh>window.innerHeight-6) top=r.top-thh-6;
+  tipEl.style.left=left+'px'; tipEl.style.top=top+'px';
+}
+function hideTip(){ tipEl.hidden=true; }
+$('ctableArea').addEventListener('mouseover',e=>{ const th=e.target.closest('th[data-tip]'); if(th) showTip(th); });
+$('ctableArea').addEventListener('mouseout', e=>{ const th=e.target.closest('th[data-tip]'); if(th && !tipPinned) hideTip(); });
+$('ctableArea').addEventListener('click',    e=>{ const th=e.target.closest('th[data-tip]'); if(th){ e.stopPropagation(); tipPinned=true; showTip(th); } });
+document.addEventListener('click',()=>{ tipPinned=false; hideTip(); });
+window.addEventListener('scroll',hideTip,true);
 
 applyDailyReset();                       // reset DQ if we've crossed 08:00 since last visit
 setInterval(applyDailyReset, 60000);     // and keep checking while the page stays open
